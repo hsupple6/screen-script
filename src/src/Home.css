@@ -1,0 +1,140 @@
+.home-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(335deg, blue 0%, red 60%, purple 100%);
+  z-index: 0;
+}
+
+.home-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(335deg, blue 0%, red 60%, purple 100%);
+  animation: expandGradient 5.25s ease-out forwards infinite;
+  z-index: -1;
+  transform-origin: center;
+}
+
+@keyframes expandGradient {
+  0% {
+    transform: scale(0);
+
+  }
+  50% {
+    transform: scale(3);
+    transform: rotate(90deg);
+
+  }
+  100% {
+    transform: scale(1);
+    transform: rotate(-90deg);
+
+  }
+}
+
+.home-head {
+  display: flex;
+  height: 15%;
+  width: 100%;
+  position: absolute;
+  top:0%;
+  background-color: #111111;
+}
+
+.home-content {
+  width: 100%;
+  height: 85%;
+  display: flex;
+  align-items: center;
+}
+
+.welcome-message {
+  position: absolute;
+  right: -15%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: rgb(235,235,235);
+  font-size: 4vw;
+  opacity: 0;
+  animation: fadeIn 1.5s ease-in forwards;
+  z-index: 4;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.home-info {
+  color: white;
+  width: 24%;
+  height: 83.45%;
+  position: absolute;
+  top: 15.5%;
+  right: 0.5%;
+  background: linear-gradient(335deg, RGB(8,8,8) 0%, RGB(12,12,12) 70% ,RGB(17,17,17) 100%);
+  box-shadow: 2px 2px 3px 3px RGB(22,22,22);
+  align-content: center;
+  justify-content: center;
+  border: solid RGB(12,12,12);
+  border-radius: 0.5vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.home-info > div {
+  padding-top: 5%;
+  padding-bottom: 12.5%;
+  text-align: center;
+  width: 100%;
+  font-size: 1.5vw;
+  margin-bottom: 1rem;
+}
+
+.home-info > div:last-child {
+  margin-bottom: 0;
+}
+
+.connections-container {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 1rem;
+  max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: RGB(22,22,22) RGB(12,12,12);
+}
+
+.connections-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.connections-container::-webkit-scrollbar-track {
+  background: RGB(12,12,12);
+  border-radius: 4px;
+}
+
+.connections-container::-webkit-scrollbar-thumb {
+  background: RGB(22,22,22);
+  border-radius: 4px;
+}
+
+.connections-container::-webkit-scrollbar-thumb:hover {
+  background: RGB(32,32,32);
+}

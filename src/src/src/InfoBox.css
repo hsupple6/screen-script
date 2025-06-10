@@ -1,0 +1,71 @@
+.info-box {
+  width: 98.5%;
+  height: 97.5%;
+
+  background: linear-gradient(335deg, RGB(8,8,8) 0%, RGB(12,12,12) 70% ,RGB(17,17,17) 100%);
+  border-radius: 0.4925vw;
+  color: white;
+  padding: 2%;
+  z-index: 2;
+}
+
+.info-box-border {
+  width: 49%;
+  height: 95%;
+
+  position: relative;
+
+  color: white;
+  box-shadow: 2px 2px 3px 3px RGB(22,22,22);
+  border-radius: 0.5vw;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: right;
+
+  animation: expandGradient ;
+  z-index: 0;
+}
+
+
+@keyframes expandGradient {
+  0% {
+    background-size: 0% 0%;
+    opacity: 0;
+  }
+  50% {
+    background-size: 300% 300%;
+    opacity: 0.5;
+  }
+  100% {
+    background-size: 100% 100%;
+    opacity: 1;
+  }
+}
+
+.info-title {
+  font-size: 1.2vw;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.info-value {
+  font-size: 1.5vw;
+  color: white;
+} 
+
+@keyframes expandGradient {
+  0% {
+    background-size: 0% 0%;
+    opacity: 0;
+  }
+  50% {
+    background-size: 300% 300%;
+    opacity: 0.5;
+  }
+  100% {
+    background-size: 100% 100%;
+    opacity: 1;
+  }
+}

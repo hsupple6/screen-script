@@ -1,0 +1,15 @@
+.console-container {
+
+    position: absolute;
+    width: 75%;
+    height: 42.85%;
+
+    top: 15.5%;
+    left: 0.25%;
+    background: linear-gradient(335deg, RGB(8,8,8) 0% ,RGB(20,20,20) 80%);
+    background-color: RGB(8,8,8);
+    box-shadow: 1px 1px 1px 1px RGB(22,22,22);
+    border: solid RGB(12,12,12);
+    border-radius: 12px;
+
+}
