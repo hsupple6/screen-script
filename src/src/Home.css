@@ -59,7 +59,7 @@
 .welcome-message {
   position: absolute;
   right: -15%;
-  top: 50%;
+  top: 35%;
   transform: translate(-50%, -50%);
   color: rgb(235,235,235);
   font-size: 4vw;
@@ -87,11 +87,10 @@
   top: 15.5%;
   right: 0.5%;
   background: linear-gradient(335deg, RGB(8,8,8) 0%, RGB(12,12,12) 70% ,RGB(17,17,17) 100%);
-  box-shadow: 2px 2px 3px 3px RGB(22,22,22);
   align-content: center;
   justify-content: center;
   border: solid RGB(12,12,12);
-  border-radius: 0.5vw;
+  border-radius: 1.2vw;
   display: flex;
   flex-direction: column;
   justify-content: center;

@@ -35,33 +35,61 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   const [galOSConnected, setGalOSConnected] = useState<boolean>(false);
 
   useEffect(() => {
-    // WebSocket connection
-    const ws = new WebSocket('ws://localhost:3002');
-
-    ws.onopen = () => {
-      console.log('Connected to WebSocket server');
-    };
-
-    ws.onmessage = (event) => {
-      const data: SystemData = JSON.parse(event.data);
-      setWifi(data.wifi);
-      setCPU(data.cpu);
-      setLastUpdate(new Date(data.timestamp).toLocaleTimeString());
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    ws.onclose = () => {
-      console.log('Disconnected from WebSocket server');
-    };
-
-    // Cleanup on unmount
-    return () => {
-      ws.close();
-    };
+    // WebSocket connection disabled - using REST API instead
+    // const ws = new WebSocket('ws://localhost:5421');
+    // ws.onopen = () => console.log('Connected to WebSocket server');
+    // ws.onmessage = (event) => {
+    //   const data: SystemData = JSON.parse(event.data);
+    //   setWifi(data.wifi);
+    //   setCPU(data.cpu);
+    //   setLastUpdate(new Date(data.timestamp).toLocaleTimeString());
+    // };
+    // ws.onerror = (error) => console.error('WebSocket error:', error);
+    // ws.onclose = () => console.log('Disconnected from WebSocket server');
+    // return () => ws.close();
   }, []);
+
+  const getWifiStatus = async () => {
+    try {
+      const response = await fetch('http://localhost:5421/api/wifi');
+      if (response.ok) {
+        const data = await response.json();
+        return data.SSID || 0;
+      }
+    } catch (error) {
+      return "No Connection Detected";
+    }
+  };
+
+  const getCPUUsage = async (): Promise<number> => {
+    try {
+      // Try system CPU first (more reliable)
+      const response = await fetch('http://localhost:5421/api/system/cpu');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('CPU API response:', data);
+        return data.usage || 0;
+      }
+    } catch (error) {
+      console.log('System CPU API failed, trying Elasticsearch:', error);
+      // Fallback to Elasticsearch CPU
+      try {
+        const response = await fetch('http://localhost:5421/api/system/elasticsearch');
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Elasticsearch API response:', data);
+          // Get CPU from the first Elasticsearch node
+          if (data.data && data.data.length > 0 && data.data[0].node_stats && data.data[0].node_stats.length > 0) {
+            return data.data[0].node_stats[0].cpu_percent || 0;
+          }
+        }
+      } catch (esError) {
+        console.log('Elasticsearch CPU API also failed:', esError);
+      }
+    }
+    console.log('Both CPU APIs failed, returning 0');
+    return 0;
+  };
 
   // Fetch GalOS applications
   useEffect(() => {
@@ -108,8 +136,25 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
 
     fetchGalOSApps();
     
+    // Get initial CPU usage
+    const updateCPU = async () => {
+      try {
+        console.log('Fetching CPU usage...');
+        const cpuUsage = await getCPUUsage();
+        console.log('CPU usage received:', cpuUsage);
+        setCPU(cpuUsage.toString());
+      } catch (error) {
+        console.error('Error updating CPU:', error);
+        setCPU('Error');
+      }
+    };
+    updateCPU();
+    
     // Refresh every 30 seconds
-    const interval = setInterval(fetchGalOSApps, 30000);
+    const interval = setInterval(() => {
+      fetchGalOSApps();
+      updateCPU();
+    }, 30000);
     
     return () => clearInterval(interval);
   }, []);
@@ -146,7 +191,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
       <div className='home-head'>
         <img src={GalLogo} alt="Gal Logo" 
         style = {{zIndex: "3"}}/>
-        <div className = "welcome-message">
+        <div className = "welcome-message" style = {{position: "absolute", top: "50%", padding: "10px"}}>
           Welcome Hayden!
         </div>
         <div className='welcome-fade'></div>
@@ -158,36 +203,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
           <div style = {{fontSize: "3vw"}}>Your Gal Box</div>
           <InfoBox title="IP Address" value={IP} />
           <InfoBox title="Connected Wifi" value={Wifi} />
-          <InfoBox title="CPU Usage" value={CPU} />
-          <InfoBox title="Last Update" value={lastUpdate} />
-          
-          {/* GalOS Connection Status */}
-          <InfoBox 
-            title="GalOS Status" 
-            value={galOSConnected ? "Connected" : "Mock Data"} 
-            style={{
-              backgroundColor: galOSConnected ? '#4CAF50' : '#FFA726'
-            }}
-          />
-          
-          {/* GalOS Applications */}
-          <div className="galos-apps-section">
-            <div style={{fontSize: "1.2vw", marginBottom: "10px", textAlign: "center"}}>
-              GalOS Applications
-            </div>
-            {galOSApps.map(app => (
-              <InfoBox
-                key={app.id}
-                title={`${app.title} (${app.type})`}
-                value={`${getStatusText(app.status)} | ${app.memoryUsage} | ${app.cpuUsage}`}
-                style={{
-                  backgroundColor: getStatusColor(app.status),
-                  marginBottom: '8px',
-                  fontSize: '0.9vw'
-                }}
-              />
-            ))}
-          </div>
+          <InfoBox title="CPU Usage" value={CPU + "%"} />
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ const cors = require('cors');
 const WebSocket = require('ws');
 
 const app = express();
-const port = 3001;
+const port = 5421;
 
 // Create WebSocket server
 const wss = new WebSocket.Server({ port: 3002 });
@@ -32,15 +32,14 @@ wss.on('connection', (ws) => {
 
 // Function to get system information
 function sendSystemInfo(ws) {
-  // Get WiFi information
-  exec('airport -I', (error, stdout, stderr) => {
+  // Get WiFi information using nmcli (for Ubuntu)
+  exec('nmcli -t -f active,ssid dev wifi | egrep "^yes" | cut -d: -f2', (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error}`);
       return;
     }
 
-    const ssidMatch = stdout.match(/[^B]SSID: (.+)/);
-    const ssid = ssidMatch ? ssidMatch[1].trim() : 'Not Connected';
+    const ssid = stdout.trim() || 'Not Connected';
 
     // Get CPU usage
     exec('top -l 1 | grep "CPU usage"', (error, stdout, stderr) => {
@@ -63,16 +62,15 @@ function sendSystemInfo(ws) {
   });
 }
 
-// Existing WiFi endpoint
+// WiFi endpoint using nmcli for Ubuntu
 app.get('/api/wifi', (req, res) => {
-  exec('airport -I', (error, stdout, stderr) => {
+  exec('nmcli -t -f active,ssid dev wifi | egrep "^yes" | cut -d: -f2', (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error}`);
       return res.status(500).json({ error: 'Failed to get WiFi info' });
     }
 
-    const ssidMatch = stdout.match(/[^B]SSID: (.+)/);
-    const ssid = ssidMatch ? ssidMatch[1].trim() : 'Not Connected';
+    const ssid = stdout.trim() || 'Not Connected';
     res.json({ ssid });
   });
 });

@@ -11,6 +11,7 @@ const InfoBox: React.FC<InfoBoxProps> = ({ title, value, style }) => {
     <div className='info-box-border' style = {style}>
       <div className="info-box" style={style}>
         <div className="info-title">{title}</div>
+        <div className="info-value">{value}</div>
       </div>
     </div>
   );

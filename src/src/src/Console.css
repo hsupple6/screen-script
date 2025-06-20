@@ -1,3 +1,21 @@
+@property --ram-percentage {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --storage-percentage {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --docker-percentage {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
 .console-container {
 
     position: absolute;
@@ -6,10 +24,212 @@
 
     top: 15.5%;
     left: 0.25%;
-    background: linear-gradient(335deg, RGB(8,8,8) 0% ,RGB(20,20,20) 80%);
     background-color: RGB(8,8,8);
     box-shadow: 1px 1px 1px 1px RGB(22,22,22);
     border: solid RGB(12,12,12);
     border-radius: 12px;
+    z-index: 5;
 
+}
+
+.console-header {
+
+    width: 100%;
+    height: 10%;
+
+    display: flex;
+    justify-content:space-evenly;
+    align-items: center;
+
+    font-size: 1.2vw;
+    color: white;
+
+}
+
+.console-body {
+
+    width: 100%;
+    height: 90%;
+
+    display: flex;
+    justify-content:space-evenly;
+    align-items: center;
+
+    font-size: 1.2vw;
+
+}
+
+.ram-title, .storage-title, .docker-title {
+    width: 30%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ram-status-container,
+.storage-status-container,
+.docker-status-container {
+    width: 30%;
+    height: 80%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ram-status-dial,
+.docker-status-dial {
+    width: 100%;
+    aspect-ratio: 1/1;
+    position: relative;
+}
+
+.dial-container {
+
+    width: 100%;
+    height: 100%;
+    position: relative;
+
+    display: flex;
+    justify-content:center;
+    align-items: center;
+
+}
+
+.dial-background {
+
+    width: 98%;
+    height: 98%;
+    position: absolute;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+@keyframes dial-animation {
+    0% {
+        transform: rotate(0deg);
+    }
+    70% {
+        transform: rotate(160deg);
+    }
+    140% {
+        transform: rotate(-60deg);
+    }
+}
+
+.dial-background::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    height: 80%;
+    background: RGB(15,15,15);
+    border-radius: 50%;
+    z-index: 2;
+}
+
+.dial-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 1.2vw;
+    font-weight: bold;
+    z-index: 3;
+    text-align: center;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.progress-circle {
+  width: 99%;
+  height: 99%;
+  border-radius: 50%;
+  z-index: 3;
+  transition: --ram-percentage 0.5s ease-in-out, --storage-percentage 0.5s ease-in-out, --docker-percentage 0.5s ease-in-out, transform 0.5s ease-in-out;
+}
+
+.ram-progress-circle {
+  background: conic-gradient(
+    from -90deg,
+    transparent 0deg,
+    transparent calc(var(--ram-percentage) * 2.7deg),
+    RGB(8,8,8) calc(var(--ram-percentage) * 2.7deg),
+    RGB(8,8,8) 270deg
+  );
+}
+
+.storage-progress-circle {
+  background: conic-gradient(
+    from -90deg,
+    transparent 0deg,
+    transparent calc(var(--storage-percentage) * 2.7deg),
+    RGB(8,8,8) calc(var(--storage-percentage) * 2.7deg),
+    RGB(8,8,8) 270deg
+  );
+}
+
+.docker-progress-circle {
+  background: conic-gradient(
+    from -90deg,
+    transparent 0deg,
+    transparent calc(var(--docker-percentage) * 2.7deg),
+    RGB(8,8,8) calc(var(--docker-percentage) * 2.7deg),
+    RGB(8,8,8) 270deg
+  );
+}
+
+.dial-start-point {
+    width: 8.98%;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 14.4%;
+    left: 18.1%;
+    transform: translateX(-50%) rotate(145deg);
+    z-index: 5;
+}
+
+.dial-end-wrapper {
+    width: 99%;
+    height: 99%;
+    position: absolute;
+    transform: rotate((var(--percentage)));
+    z-index: 6;
+    transition: transform 0.5s ease-in-out;
+}
+
+.dial-end-point {
+    width: 8.98%;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 14.1%;
+    left: 18.1%;
+    transform: translateX(-50%) rotate(145deg);
+    z-index: 5;
+}
+
+.text-divider {
+    position: relative;
+    width: 40px;
+    height: 2px;
+    background-color: white;
+    margin: 0 5px;
+    z-index: 5;
+    align-self: center;
+}
+
+.ram-usage-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1vw;
+    color: white;
+    font-weight: bold;
 }
