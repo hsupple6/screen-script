@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import './App.css';
 import Home from './src/Home';
+import { relative } from 'path';
 
 function App() {
   const toggleFullScreen = async () => {
@@ -48,6 +49,7 @@ function App() {
 
   return (
     <div className="App">
+      <div className = 'Spacer' style = {{width: "10%", height: "100%", background: "black", position: "relative", left: "0"}}></div>
       <Home/>
     </div>
   );
