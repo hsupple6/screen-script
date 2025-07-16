@@ -105,11 +105,11 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   const [updateProgress, setUpdateProgress] = useState<number>(0);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [updateMessage, setUpdateMessage] = useState<string>('Starting Update...');
-  const [receivedHundredPercent, setReceivedHundredPercent] = useState<boolean>(false);
   const updateProgressRef = useRef<HTMLDivElement>(null);
   const updateEndWrapperRef = useRef<HTMLDivElement>(null);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(0);
+  const baseProgressRef = useRef<number>(0); // Base progress from commands
+  const startTimeRef = useRef<number>(0); // When the current timer segment started
 
   // Function to handle start command
   const handleStartCommand = async (command: string, args: string[] = []) => {
@@ -199,10 +199,10 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     setIsUpdating(true);
     setUpdateProgress(0);
     setUpdateMessage('Starting Update...');
-    setReceivedHundredPercent(false);
+    baseProgressRef.current = 0;
     
     // Start the 3-minute update process
-    updateIntervalRef.current = startUpdateProcess(0);
+    startUpdateProcess();
   };
 
   // Function to check for recent start commands from backend
@@ -221,52 +221,53 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   };
 
     // Function to start the update process (3 minutes to 100%)
-  const startUpdateProcess = (startFromProgress: number = 0) => {
-    const duration = 3 * 60 * 1000; // 3 minutes in milliseconds
-    const remainingProgress = 100 - startFromProgress;
-    const remainingTime = (remainingProgress / 100) * duration;
-    
-    // Set start time so that we reach 100% in remainingTime
-    startTimeRef.current = Date.now() - (duration - remainingTime);
-    
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      const progress = Math.min((elapsed / duration) * 100, 100);
-      
-      // Update CSS custom properties exactly like Console component
-      updateProgressCircle(updateProgressRef.current, progress, '--docker-percentage');
-      updateEndWrapper(updateEndWrapperRef.current, progress);
-      
-      // Update state
-      setUpdateProgress(progress);
-      
-      // Only stop if we reach 100% AND we've received a 100% command
-      if (progress >= 100 && receivedHundredPercent) {
-        clearInterval(interval);
-        setUpdateMessage('Update Complete');
-        // Wait 3 seconds then show "Finished Update"
-        setTimeout(() => {
-          setUpdateMessage('Finished Update');
-          // After showing "Finished Update", animate dial to 0 and disappear
-          setTimeout(() => {
-            animateDialToZero();
-          }, 2000);
-        }, 3000);
-      }
-    }, 100); // Update every 100ms for smooth animation
-    
-    return interval;
-  };
-
-  // Function to restart timer from a specific progress point
-  const restartTimerFromProgress = (newProgress: number) => {
-    // Clear the current interval
+  const startUpdateProcess = () => {
+    // Clear any existing interval
     if (updateIntervalRef.current) {
       clearInterval(updateIntervalRef.current);
     }
     
-    // Start the new interval from the new progress point
-    updateIntervalRef.current = startUpdateProcess(newProgress);
+    startTimeRef.current = Date.now();
+    const duration = 3 * 60 * 1000; // 3 minutes total duration
+    const progressPerMs = 100 / duration; // Progress per millisecond
+    
+    updateIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const timerProgress = elapsed * progressPerMs; // Progress from timer
+      const totalProgress = Math.min(baseProgressRef.current + timerProgress, 100);
+      
+      // Update CSS custom properties exactly like Console component
+      updateProgressCircle(updateProgressRef.current, totalProgress, '--docker-percentage');
+      updateEndWrapper(updateEndWrapperRef.current, totalProgress);
+      
+      // Update state
+      setUpdateProgress(totalProgress);
+      
+             // Stop at 100% (will be handled by completion command)
+       if (totalProgress >= 100) {
+         if (updateIntervalRef.current) {
+           clearInterval(updateIntervalRef.current);
+           updateIntervalRef.current = null;
+         }
+         setUpdateMessage('Waiting for completion...');
+       }
+    }, 100); // Update every 100ms for smooth animation
+  };
+
+  // Function to set a new base progress and restart timer
+  const setProgressAndContinue = (newProgress: number) => {
+    // Set the new base progress
+    baseProgressRef.current = newProgress;
+    
+    // Update display immediately
+    updateProgressCircle(updateProgressRef.current, newProgress, '--docker-percentage');
+    updateEndWrapper(updateEndWrapperRef.current, newProgress);
+    setUpdateProgress(newProgress);
+    
+    // If we're not at 100%, restart the timer
+    if (newProgress < 100) {
+      startUpdateProcess();
+    }
   };
 
   // Function to animate dial to 0 and disappear
@@ -314,65 +315,36 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
 
   // Function to handle percent command during update
   const handlePercentDuringUpdate = (percent: number) => {
-    if (isUpdating) {
-      console.log('Updating progress to:', percent);
-      
-      // Clear the current interval
+    if (!isUpdating) return;
+    
+    console.log('Updating progress to:', percent);
+    
+    // If percent is 100, immediately complete
+    if (percent >= 100) {
+      // Clear timer
       if (updateIntervalRef.current) {
         clearInterval(updateIntervalRef.current);
+        updateIntervalRef.current = null;
       }
       
-      // If percent is 100, immediately stop and complete
-      if (percent >= 100) {
-        // Animate to 100% quickly
-        const currentProgress = updateProgress;
-        const animationDuration = 300; // Quick animation
-        const startTime = Date.now();
-        
-        const animateToHundred = () => {
-          const elapsed = Date.now() - startTime;
-          const progress = Math.min(elapsed / animationDuration, 1);
-          
-          const newProgress = currentProgress + (100 - currentProgress) * progress;
-          
-          // Update CSS custom properties exactly like Console component
-          updateProgressCircle(updateProgressRef.current, newProgress, '--docker-percentage');
-          updateEndWrapper(updateEndWrapperRef.current, newProgress);
-          
-          // Update state
-          setUpdateProgress(newProgress);
-          
-          if (progress < 1) {
-            requestAnimationFrame(animateToHundred);
-          } else {
-            // Animation complete, trigger completion sequence
-            setUpdateMessage('Update Complete');
-            setTimeout(() => {
-              setUpdateMessage('Finished Update');
-              setTimeout(() => {
-                animateDialToZero();
-              }, 2000);
-            }, 3000);
-          }
-        };
-        
-        requestAnimationFrame(animateToHundred);
-        return;
-      }
+      // Set to 100% and complete
+      updateProgressCircle(updateProgressRef.current, 100, '--docker-percentage');
+      updateEndWrapper(updateEndWrapperRef.current, 100);
+      setUpdateProgress(100);
       
-      // For non-100% commands, jump to target percent and restart timer
-      const targetProgress = percent;
-      
-      // Immediately jump to the target percent
-      updateProgressCircle(updateProgressRef.current, targetProgress, '--docker-percentage');
-      updateEndWrapper(updateEndWrapperRef.current, targetProgress);
-      setUpdateProgress(targetProgress);
-      
-      // Restart the timer from the new progress point
-      if (targetProgress < 100) {
-        restartTimerFromProgress(targetProgress);
-      }
+      // Trigger completion sequence
+      setUpdateMessage('Update Complete');
+      setTimeout(() => {
+        setUpdateMessage('Finished Update');
+        setTimeout(() => {
+          animateDialToZero();
+        }, 2000);
+      }, 3000);
+      return;
     }
+    
+    // For non-100% commands, set new progress and continue
+    setProgressAndContinue(percent);
   };
 
   // Listen for start commands (you can call this from browser console or external scripts)
