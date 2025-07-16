@@ -11,7 +11,7 @@ const port = 5421;
 
 app.use(cors());
 app.use(express.json());
-
+// Test comment
 // Get current WiFi information using airport utility
 app.get('/api/wifi', async (req, res) => {
     try {
