@@ -503,12 +503,20 @@ app.post('/api/command/start', async (req, res) => {
             console.log(`Start command stderr: ${stderr}`);
         }
         
+        // Store the command timestamp for frontend polling
+        global.lastStartCommand = {
+            timestamp: Date.now(),
+            command: fullCommand,
+            output: stdout
+        };
+        
         res.json({
             success: true,
             command: fullCommand,
             output: stdout,
             error: stderr || null,
-            message: `Command '${command}' started successfully`
+            message: `Command '${command}' started successfully`,
+            timestamp: Date.now()
         });
         
     } catch (error) {
@@ -519,6 +527,14 @@ app.post('/api/command/start', async (req, res) => {
             message: `Failed to execute command: ${error.message}`
         });
     }
+});
+
+// Get recent start commands for frontend polling
+app.get('/api/command/recent', (req, res) => {
+    res.json({
+        lastStartCommand: global.lastStartCommand || null,
+        lastPercentCommand: global.lastPercentCommand || null
+    });
 });
 
 // Send percent command endpoint
@@ -536,6 +552,13 @@ app.post('/api/command/percent', async (req, res) => {
         }
         
         console.log(`Received percent command: ${percentValue}% (action: ${action})`);
+        
+        // Store the percent command for frontend polling
+        global.lastPercentCommand = {
+            timestamp: Date.now(),
+            percent: percentValue,
+            action: action
+        };
         
         // Here you can add logic to handle the percentage value
         // For example, you could:

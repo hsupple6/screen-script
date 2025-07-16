@@ -201,6 +201,21 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     startUpdateProcess();
   };
 
+  // Function to check for recent start commands from backend
+  const checkForStartCommands = async () => {
+    try {
+      // You could add a new endpoint to check recent commands, or
+      // for now, we'll use a simple approach - check if the backend is responding
+      const response = await fetch('http://localhost:5421/api/system/cpu');
+      if (response.ok) {
+        // Backend is running, could trigger animation here
+        // For now, we'll rely on manual trigger or the button
+      }
+    } catch (error) {
+      console.log('Backend not available');
+    }
+  };
+
   // Function to start the update process
   const startUpdateProcess = () => {
     // Simulate progress updates
@@ -314,6 +329,44 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
       delete (window as any).triggerStartAnimation;
     };
   }, []);
+
+  // Poll for recent commands from backend
+  useEffect(() => {
+    let lastStartTimestamp = 0;
+    let lastPercentTimestamp = 0;
+    
+    const pollForCommands = async () => {
+      try {
+        const response = await fetch('http://localhost:5421/api/command/recent');
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Check for new start commands
+          if (data.lastStartCommand && data.lastStartCommand.timestamp > lastStartTimestamp) {
+            lastStartTimestamp = data.lastStartCommand.timestamp;
+            console.log('New start command detected:', data.lastStartCommand);
+            triggerStartAnimation();
+          }
+          
+          // Check for new percent commands
+          if (data.lastPercentCommand && data.lastPercentCommand.timestamp > lastPercentTimestamp) {
+            lastPercentTimestamp = data.lastPercentCommand.timestamp;
+            console.log('New percent command detected:', data.lastPercentCommand);
+            if (isUpdating) {
+              handlePercentDuringUpdate(data.lastPercentCommand.percent);
+            }
+          }
+        }
+      } catch (error) {
+        // Backend might not be running, ignore errors
+      }
+    };
+    
+    // Poll every 2 seconds
+    const interval = setInterval(pollForCommands, 2000);
+    
+    return () => clearInterval(interval);
+  }, [isUpdating]);
 
   useEffect(() => {
     // WebSocket connection disabled - using REST API instead
