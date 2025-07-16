@@ -12,6 +12,34 @@ const port = 5421;
 app.use(cors());
 app.use(express.json());
 
+// Get current IP address
+app.get('/api/system/ip', async (req, res) => {
+    try {
+        console.log('Fetching IP address...');
+        
+        // Get local IP address (Ubuntu)
+        try {
+            const { stdout } = await execPromise("ip route get 1.1.1.1 | awk '{for(i=1;i<=NF;i++) if($i==\"src\") print $(i+1); exit}'");
+            const localIP = stdout.trim();
+            
+            if (localIP) {
+                res.json({
+                    local_ip: localIP,
+                    type: 'local'
+                });
+            } else {
+                res.json({ error: 'Could not determine IP address' });
+            }
+        } catch (error) {
+            console.error('Error getting IP address:', error);
+            res.json({ error: 'IP detection failed' });
+        }
+    } catch (error) {
+        console.error('Error in IP endpoint:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Get current WiFi information for Ubuntu
 app.get('/api/wifi', async (req, res) => {
     try {

@@ -474,10 +474,22 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
       const response = await fetch('http://localhost:5421/api/wifi');
       if (response.ok) {
         const data = await response.json();
-        return data.SSID || 0;
+        return data.ssid || "No Connection Detected";
       }
     } catch (error) {
       return "No Connection Detected";
+    }
+  };
+
+  const getIPAddress = async () => {
+    try {
+      const response = await fetch('http://localhost:5421/api/system/ip');
+      if (response.ok) {
+        const data = await response.json();
+        return data.local_ip || "Unknown";
+      }
+    } catch (error) {
+      return "Unknown";
     }
   };
 
@@ -556,24 +568,39 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
 
     fetchGalOSApps();
     
-    // Get initial CPU usage
-    const updateCPU = async () => {
+    // Get initial system data (CPU, WiFi, IP)
+    const updateSystemData = async () => {
       try {
-        console.log('Fetching CPU usage...');
+        console.log('Fetching system data...');
+        
+        // Fetch CPU usage
         const cpuUsage = await getCPUUsage();
         console.log('CPU usage received:', cpuUsage);
         setCPU(cpuUsage.toString());
+        
+        // Fetch WiFi status
+        const wifiStatus = await getWifiStatus();
+        console.log('WiFi status received:', wifiStatus);
+        setWifi(wifiStatus);
+        
+        // Fetch IP address
+        const ipAddress = await getIPAddress();
+        console.log('IP address received:', ipAddress);
+        setIP(ipAddress);
+        
       } catch (error) {
-        console.error('Error updating CPU:', error);
+        console.error('Error updating system data:', error);
         setCPU('Error');
+        setWifi('Error');
+        setIP('Error');
       }
     };
-    updateCPU();
+    updateSystemData();
     
     // Refresh every 30 seconds
     const interval = setInterval(() => {
       fetchGalOSApps();
-      updateCPU();
+      updateSystemData();
     }, 30000);
     
     return () => clearInterval(interval);
