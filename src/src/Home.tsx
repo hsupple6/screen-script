@@ -105,6 +105,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   const [updateProgress, setUpdateProgress] = useState<number>(0);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [updateMessage, setUpdateMessage] = useState<string>('Starting Update...');
+  const [receivedHundredPercent, setReceivedHundredPercent] = useState<boolean>(false);
   const updateProgressRef = useRef<HTMLDivElement>(null);
   const updateEndWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -197,7 +198,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     setUpdateProgress(0);
     setUpdateMessage('Starting Update...');
     
-    // Start the update process
+    // Start the 3-minute update process
     startUpdateProcess();
   };
 
@@ -216,39 +217,37 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     }
   };
 
-  // Function to start the update process
+    // Function to start the update process (3 minutes to 100%)
   const startUpdateProcess = () => {
-    // Simulate progress updates
+    const startTime = Date.now();
+    const duration = 3 * 60 * 1000; // 3 minutes in milliseconds
+    const incrementPerSecond = 100 / (3 * 60); // 0.556% per second
+    
     const interval = setInterval(() => {
-      setUpdateProgress(prev => {
-        const newProgress = Math.min(prev + Math.random() * 15, 100); // Random progress increments
-        
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          const finalProgress = 100;
-          
-                // Update CSS custom properties exactly like Console component
-      updateProgressCircle(updateProgressRef.current, finalProgress, '--docker-percentage');
-      updateEndWrapper(updateEndWrapperRef.current, finalProgress);
-          
-          // Wait 3 seconds then show "Finished Update"
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / duration) * 100, 100);
+      
+      // Update CSS custom properties exactly like Console component
+      updateProgressCircle(updateProgressRef.current, progress, '--docker-percentage');
+      updateEndWrapper(updateEndWrapperRef.current, progress);
+      
+      // Update state
+      setUpdateProgress(progress);
+      
+      // Only stop if we reach 100% AND we've received a 100% command
+      if (progress >= 100 && receivedHundredPercent) {
+        clearInterval(interval);
+        setUpdateMessage('Update Complete');
+        // Wait 3 seconds then show "Finished Update"
+        setTimeout(() => {
+          setUpdateMessage('Finished Update');
+          // After showing "Finished Update", animate dial to 0 and disappear
           setTimeout(() => {
-            setUpdateMessage('Finished Update');
-            // After showing "Finished Update", animate dial to 0 and disappear
-            setTimeout(() => {
-              animateDialToZero();
-            }, 2000);
-          }, 3000);
-          return finalProgress;
-        }
-        
-        // Update CSS custom properties exactly like Console component
-        updateProgressCircle(updateProgressRef.current, newProgress, '--docker-percentage');
-        updateEndWrapper(updateEndWrapperRef.current, newProgress);
-        
-        return newProgress;
-      });
-    }, 500);
+            animateDialToZero();
+          }, 2000);
+        }, 3000);
+      }
+    }, 100); // Update every 100ms for smooth animation
   };
 
   // Function to animate dial to 0 and disappear
@@ -299,24 +298,41 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     if (isUpdating) {
       console.log('Updating progress to:', percent);
       
-      // Update CSS custom properties exactly like Console component
-      updateProgressCircle(updateProgressRef.current, percent, '--docker-percentage');
-      updateEndWrapper(updateEndWrapperRef.current, percent);
-      
-      // Update state after CSS properties (like Console component)
-      setUpdateProgress(percent);
-      
+      // If percent is 100, mark that we've received the 100% command
       if (percent >= 100) {
-        setUpdateMessage('Update Complete');
-        // Wait 3 seconds then show "Finished Update"
-        setTimeout(() => {
-          setUpdateMessage('Finished Update');
-          // After showing "Finished Update", animate dial to 0 and disappear
-          setTimeout(() => {
-            animateDialToZero();
-          }, 2000);
-        }, 3000);
+        setReceivedHundredPercent(true);
       }
+      
+      // Animate to the target percent at animation rate
+      const currentProgress = updateProgress;
+      const targetProgress = percent;
+      const animationDuration = 500; // 500ms animation
+      const startTime = Date.now();
+      
+      const animateToPercent = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        
+        // Easing function (ease-in-out)
+        const easeInOut = progress < 0.5 
+          ? 2 * progress * progress 
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+        
+        const newProgress = currentProgress + (targetProgress - currentProgress) * easeInOut;
+        
+        // Update CSS custom properties exactly like Console component
+        updateProgressCircle(updateProgressRef.current, newProgress, '--docker-percentage');
+        updateEndWrapper(updateEndWrapperRef.current, newProgress);
+        
+        // Update state
+        setUpdateProgress(newProgress);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateToPercent);
+        }
+      };
+      
+      requestAnimationFrame(animateToPercent);
     }
   };
 
@@ -341,8 +357,8 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         if (response.ok) {
           const data = await response.json();
           
-          // Check for new start commands
-          if (data.lastStartCommand && data.lastStartCommand.timestamp > lastStartTimestamp) {
+          // Check for new start commands (only if not already updating)
+          if (data.lastStartCommand && data.lastStartCommand.timestamp > lastStartTimestamp && !isUpdating) {
             lastStartTimestamp = data.lastStartCommand.timestamp;
             console.log('New start command detected:', data.lastStartCommand);
             triggerStartAnimation();
@@ -568,27 +584,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         )}
       </div>
       
-      {/* Start Command Button */}
-      <button 
-        onClick={triggerStartAnimation}
-        className="start-command-btn"
-        style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          zIndex: 10001,
-          padding: '10px 20px',
-          backgroundColor: '#4CAF50',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-          cursor: 'pointer',
-          fontSize: '14px',
-          fontWeight: 'bold'
-        }}
-      >
-        Start Command
-      </button>
+
       <div className="home-content">
         <div className="home-info">
           <div style = {{fontSize: "3vw"}}>Your Gal Box</div>
