@@ -537,6 +537,16 @@ app.get('/api/command/recent', (req, res) => {
     });
 });
 
+// Clear stored commands (useful for resetting state)
+app.post('/api/command/clear', (req, res) => {
+    global.lastStartCommand = null;
+    global.lastPercentCommand = null;
+    res.json({
+        success: true,
+        message: 'Stored commands cleared'
+    });
+});
+
 // Send percent command endpoint
 app.post('/api/command/percent', async (req, res) => {
     try {

@@ -302,17 +302,50 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     if (isUpdating) {
       console.log('Updating progress to:', percent);
       
-      // If percent is 100, mark that we've received the 100% command
-      if (percent >= 100) {
-        setReceivedHundredPercent(true);
-      }
-      
       // Clear the current interval
       if (updateIntervalRef.current) {
         clearInterval(updateIntervalRef.current);
       }
       
-      // Animate to the target percent at animation rate
+      // If percent is 100, immediately stop and complete
+      if (percent >= 100) {
+        // Animate to 100% quickly
+        const currentProgress = updateProgress;
+        const animationDuration = 300; // Quick animation
+        const startTime = Date.now();
+        
+        const animateToHundred = () => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / animationDuration, 1);
+          
+          const newProgress = currentProgress + (100 - currentProgress) * progress;
+          
+          // Update CSS custom properties exactly like Console component
+          updateProgressCircle(updateProgressRef.current, newProgress, '--docker-percentage');
+          updateEndWrapper(updateEndWrapperRef.current, newProgress);
+          
+          // Update state
+          setUpdateProgress(newProgress);
+          
+          if (progress < 1) {
+            requestAnimationFrame(animateToHundred);
+          } else {
+            // Animation complete, trigger completion sequence
+            setUpdateMessage('Update Complete');
+            setTimeout(() => {
+              setUpdateMessage('Finished Update');
+              setTimeout(() => {
+                animateDialToZero();
+              }, 2000);
+            }, 3000);
+          }
+        };
+        
+        requestAnimationFrame(animateToHundred);
+        return;
+      }
+      
+      // For non-100% commands, animate to the target percent at animation rate
       const currentProgress = updateProgress;
       const targetProgress = percent;
       const animationDuration = 500; // 500ms animation
@@ -382,6 +415,9 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
             lastStartTimestamp = data.lastStartCommand.timestamp;
             console.log('New start command detected:', data.lastStartCommand);
             triggerStartAnimation();
+            
+            // Clear the stored start command so it doesn't keep triggering
+            fetch('http://localhost:5421/api/command/clear', { method: 'POST' }).catch(() => {});
           }
           
           // Check for new percent commands
@@ -390,6 +426,11 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
             console.log('New percent command detected:', data.lastPercentCommand);
             if (isUpdating) {
               handlePercentDuringUpdate(data.lastPercentCommand.percent);
+              
+              // If it's a 100% command, clear the stored commands
+              if (data.lastPercentCommand.percent >= 100) {
+                fetch('http://localhost:5421/api/command/clear', { method: 'POST' }).catch(() => {});
+              }
             }
           }
         }
