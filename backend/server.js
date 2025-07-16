@@ -483,6 +483,104 @@ app.get('/api/system/elasticsearch', async (req, res) => {
     }
 });
 
+// Send start command endpoint
+app.post('/api/command/start', async (req, res) => {
+    try {
+        const { command, args = [] } = req.body;
+        
+        if (!command) {
+            return res.status(400).json({ error: 'Command is required' });
+        }
+        
+        console.log(`Executing start command: ${command} ${args.join(' ')}`);
+        
+        // Execute the command
+        const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command;
+        const { stdout, stderr } = await execPromise(fullCommand);
+        
+        console.log(`Start command output: ${stdout}`);
+        if (stderr) {
+            console.log(`Start command stderr: ${stderr}`);
+        }
+        
+        res.json({
+            success: true,
+            command: fullCommand,
+            output: stdout,
+            error: stderr || null,
+            message: `Command '${command}' started successfully`
+        });
+        
+    } catch (error) {
+        console.error('Error executing start command:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            message: `Failed to execute command: ${error.message}`
+        });
+    }
+});
+
+// Send percent command endpoint
+app.post('/api/command/percent', async (req, res) => {
+    try {
+        const { percent, action = 'set' } = req.body;
+        
+        if (percent === undefined || percent === null) {
+            return res.status(400).json({ error: 'Percent value is required' });
+        }
+        
+        const percentValue = parseFloat(percent);
+        if (isNaN(percentValue) || percentValue < 0 || percentValue > 100) {
+            return res.status(400).json({ error: 'Percent must be a number between 0 and 100' });
+        }
+        
+        console.log(`Received percent command: ${percentValue}% (action: ${action})`);
+        
+        // Here you can add logic to handle the percentage value
+        // For example, you could:
+        // - Store it in a database
+        // - Trigger specific actions based on the percentage
+        // - Send it to other services
+        // - Update system configurations
+        
+        let message = `Percent value ${percentValue}% received`;
+        let additionalData = {};
+        
+        // Example: Different actions based on percentage ranges
+        if (percentValue >= 90) {
+            message += ' - High usage detected!';
+            additionalData.alert = 'high_usage';
+        } else if (percentValue >= 75) {
+            message += ' - Moderate usage';
+            additionalData.alert = 'moderate_usage';
+        } else if (percentValue >= 50) {
+            message += ' - Normal usage';
+            additionalData.alert = 'normal_usage';
+        } else {
+            message += ' - Low usage';
+            additionalData.alert = 'low_usage';
+        }
+        
+        res.json({
+            success: true,
+            percent: percentValue,
+            action: action,
+            message: message,
+            timestamp: new Date().toISOString(),
+            ...additionalData
+        });
+        
+    } catch (error) {
+        console.error('Error processing percent command:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            message: `Failed to process percent command: ${error.message}`
+        });
+    }
+});
+
 // Helper function to parse network bytes
 function parseNetworkBytes(str) {
     const units = { 'B': 1, 'kB': 1000, 'MB': 1000000, 'GB': 1000000000 };

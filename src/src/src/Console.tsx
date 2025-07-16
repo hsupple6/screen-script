@@ -277,16 +277,10 @@ const Console: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) =>
               <div className = "cover-circle" style = {{background: "RGB(8,8,8)", zIndex: 4, width: "80%", height: "80%", position: "absolute", borderRadius: "50%"}}>
                                   <div className = "dial-text">
                     <div className = "usage-text" style = {{fontSize: "2vw", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", justifyContent: "center"}}>
-                      {startGalos === 1 ? 
-                        <div className="galos-started">
-                          <div className="galos-text">GalOS Started</div>
-                          <div className="galos-pulse"></div>
-                        </div>
-                       : 
-                        (<>
+                      <>
                         <div><AnimatedNumber value={dockerImages} duration={500} /> Containers</div>
                         <div style = {{fontSize: "1.5vw"}}><AnimatedNumber value={dockerStatus} duration={500} />%</div>
-                      </>)}
+                      </>
                       
                     </div>
                   </div>

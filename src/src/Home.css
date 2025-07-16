@@ -1,3 +1,10 @@
+/* CSS Properties for Update Dial */
+@property --update-percentage {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
 .home-container {
   min-height: 100vh;
   display: flex;
@@ -391,4 +398,288 @@
 
 .galos-apps-section::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
+}
+
+/* Screen Script Styles */
+.screen-script-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Demo Controls */
+.demo-controls {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+  z-index: 1001;
+}
+
+.demo-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+.start-btn {
+  background: linear-gradient(45deg, #4CAF50, #45a049);
+}
+
+.start-btn:hover {
+  background: linear-gradient(45deg, #45a049, #4CAF50);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.percent-btn {
+  background: linear-gradient(45deg, #2196F3, #1976D2);
+}
+
+.percent-btn:hover {
+  background: linear-gradient(45deg, #1976D2, #2196F3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Start Animation - Body Shrinks to Center */
+.home-container.start-animation .home-content {
+  animation: shrinkToCenter 3s ease-in-out forwards;
+}
+
+.home-container.start-animation .home-head {
+  animation: shrinkToCenter 3s ease-in-out forwards;
+}
+
+.home-container.start-animation .home-info {
+  animation: shrinkToCenter 3s ease-in-out forwards;
+}
+
+@keyframes shrinkToCenter {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.3);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(0.1);
+    opacity: 0.3;
+  }
+}
+
+/* Percent Circles */
+.percent-circle {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: circleAppear 0.5s ease-out forwards;
+  pointer-events: auto;
+}
+
+.percent-circle[data-alert="high_usage"] {
+  background: linear-gradient(45deg, #ff4444, #cc3333);
+  box-shadow: 0 0 30px rgba(255, 68, 68, 0.6);
+}
+
+.percent-circle[data-alert="moderate_usage"] {
+  background: linear-gradient(45deg, #ffa726, #ff9800);
+  box-shadow: 0 0 30px rgba(255, 167, 38, 0.6);
+}
+
+.percent-circle[data-alert="normal_usage"] {
+  background: linear-gradient(45deg, #4CAF50, #45a049);
+  box-shadow: 0 0 30px rgba(76, 175, 80, 0.6);
+}
+
+.percent-circle[data-alert="low_usage"] {
+  background: linear-gradient(45deg, #2196F3, #1976D2);
+  box-shadow: 0 0 30px rgba(33, 150, 243, 0.6);
+}
+
+.percent-circle-inner {
+  text-align: center;
+  color: white;
+  font-weight: bold;
+}
+
+.percent-value {
+  font-size: 3rem;
+  margin-bottom: 5px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.percent-timestamp {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes circleAppear {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+    opacity: 1;
+  }
+}
+
+/* Position circles randomly */
+.percent-circle:nth-child(3n) {
+  top: 20%;
+  left: 20%;
+}
+
+.percent-circle:nth-child(3n+1) {
+  top: 60%;
+  right: 25%;
+}
+
+.percent-circle:nth-child(3n+2) {
+  bottom: 30%;
+  left: 60%;
+}
+
+/* GalOS Started Animation */
+.galos-started {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: galosAppear 2s ease-out forwards;
+  pointer-events: none;
+}
+
+.galos-text {
+  font-size: 4rem;
+  font-weight: bold;
+  color: #00ff00;
+  text-shadow: 
+    0 0 10px #00ff00,
+    0 0 20px #00ff00,
+    0 0 30px #00ff00,
+    2px 2px 4px rgba(0, 0, 0, 0.8);
+  animation: galosGlow 2s ease-in-out infinite alternate;
+  border: 3px solid white;
+  padding: 20px 40px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  animation: galosGlow 2s ease-in-out infinite alternate, borderFill 3s ease-out forwards;
+}
+
+@keyframes galosAppear {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes galosGlow {
+  0% {
+    text-shadow: 
+      0 0 10px #00ff00,
+      0 0 20px #00ff00,
+      0 0 30px #00ff00,
+      2px 2px 4px rgba(0, 0, 0, 0.8);
+  }
+  100% {
+    text-shadow: 
+      0 0 20px #00ff00,
+      0 0 30px #00ff00,
+      0 0 40px #00ff00,
+      2px 2px 4px rgba(0, 0, 0, 0.8);
+  }
+}
+
+@keyframes borderFill {
+  0% {
+    border-color: transparent;
+  }
+  100% {
+    border-color: white;
+  }
+}
+
+.home-cover {
+
+  position: absolute;
+  left: 0.4%;
+  bottom: 0.8%;
+  background-color: #111111;
+  opacity: 0;
+  width: 99.2%;
+  height: 83.8%;
+  border-radius: 1.2vw;
+  border: solid #111111;
+  z-index: 10000;
+
+  transition: opacity 0.1s ease-in-out;
+
+}
+
+
+
+/* Dial Completion Animation */
+.home-cover.dial-complete {
+  animation: dialCompleteAnimation 2s ease-in-out forwards;
+}
+
+@keyframes dialCompleteAnimation {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.025); /* 2.5% increase */
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+/* Update dial background animation */
+.update-dial-container .dial-background {
+  animation: updateBackgroundPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes updateBackgroundPulse {
+  0% {
+    box-shadow: 0 0 20px rgba(0, 100, 0, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 40px rgba(0, 100, 0, 0.8);
+  }
 }
