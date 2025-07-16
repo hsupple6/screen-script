@@ -647,23 +647,71 @@
 
 
 
-/* Dial Completion Animation */
-.home-cover.dial-complete {
-  animation: dialCompleteAnimation 2s ease-in-out forwards;
+/* Spectacular Closing Animation */
+.home-cover.spectacular-close {
+  animation: spectacularClose 2s ease-in-out forwards;
 }
 
-@keyframes dialCompleteAnimation {
+.dial-pulse-out {
+  animation: dialPulseOut 2s ease-in-out forwards;
+}
+
+@keyframes spectacularClose {
   0% {
     transform: scale(1);
     opacity: 1;
+    background-color: #111111;
+    border-radius: 1.2vw;
+  }
+  25% {
+    transform: scale(1.05);
+    opacity: 0.95;
+    background-color: #1a4a1a;
+    box-shadow: 0 0 50px rgba(0, 255, 0, 0.3);
   }
   50% {
-    transform: scale(1.025); /* 2.5% increase */
+    transform: scale(1.1);
     opacity: 0.8;
+    background-color: #2a5a2a;
+    box-shadow: 0 0 100px rgba(0, 255, 0, 0.5);
+    border-radius: 2vw;
+  }
+  75% {
+    transform: scale(0.8);
+    opacity: 0.4;
+    background-color: #0a3a0a;
+    box-shadow: 0 0 150px rgba(0, 255, 0, 0.7);
+    border-radius: 3vw;
   }
   100% {
     transform: scale(0);
     opacity: 0;
+    background-color: transparent;
+    box-shadow: 0 0 200px rgba(0, 255, 0, 0.9);
+    border-radius: 50%;
+  }
+}
+
+@keyframes dialPulseOut {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: brightness(1) drop-shadow(0 0 10px rgba(0, 100, 0, 0.5));
+  }
+  25% {
+    transform: translate(-50%, -50%) scale(1.2);
+    filter: brightness(1.3) drop-shadow(0 0 30px rgba(0, 255, 0, 0.8));
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.5);
+    filter: brightness(1.6) drop-shadow(0 0 50px rgba(0, 255, 0, 1));
+  }
+  75% {
+    transform: translate(-50%, -50%) scale(1.8);
+    filter: brightness(2) drop-shadow(0 0 70px rgba(0, 255, 0, 0.9));
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0);
+    filter: brightness(3) drop-shadow(0 0 100px rgba(0, 255, 0, 0.5));
   }
 }
 

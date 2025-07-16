@@ -272,28 +272,69 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
 
   // Function to animate dial to 0 and disappear
   const animateDialToZero = () => {
-    // Animate dial to 0
-    setUpdateProgress(0);
+    setUpdateMessage('Finalizing...');
     
-    // After dial reaches 0, animate diameter and background
-    setTimeout(() => {
-      // Add CSS class for diameter animation
-      const homeCover = document.querySelector('.home-cover');
-      if (homeCover) {
-        homeCover.classList.add('dial-complete');
+    // Smooth animation to 0 over 1 second
+    const animationDuration = 1000;
+    const startTime = Date.now();
+    const startProgress = updateProgress;
+    
+    const animateDown = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      
+      // Ease-out animation
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const currentProgress = startProgress * (1 - easeOut);
+      
+      // Update both the dial slider and the number
+      updateProgressCircle(updateProgressRef.current, currentProgress, '--docker-percentage');
+      updateEndWrapper(updateEndWrapperRef.current, currentProgress);
+      setUpdateProgress(currentProgress);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateDown);
+      } else {
+        // Animation to 0 complete, now do the spectacular closing
+        setUpdateMessage('Complete!');
+        setTimeout(() => {
+          spectacularClose();
+        }, 500);
+      }
+    };
+    
+    requestAnimationFrame(animateDown);
+  };
+  
+  // Spectacular closing animation
+  const spectacularClose = () => {
+    const homeCover = document.querySelector('.home-cover');
+    if (homeCover) {
+      // Add multiple animation classes for a spectacular effect
+      homeCover.classList.add('spectacular-close');
+      
+      // Pulse effect on the dial
+      const dialContainer = homeCover.querySelector('.storage-status-container');
+      if (dialContainer) {
+        (dialContainer as HTMLElement).classList.add('dial-pulse-out');
       }
       
-      // Remove the cover after animation
+      // Clean up after animation
       setTimeout(() => {
         setIsStartAnimation(false);
         setIsUpdating(false);
         setUpdateProgress(0);
         setUpdateMessage('Starting Update...');
+        baseProgressRef.current = 0;
+        
         if (homeCover) {
-          homeCover.classList.remove('dial-complete');
+          homeCover.classList.remove('spectacular-close');
+        }
+        if (dialContainer) {
+          (dialContainer as HTMLElement).classList.remove('dial-pulse-out');
         }
       }, 2000);
-    }, 1000);
+    }
   };
 
   // Function to update progress circle using CSS custom properties
