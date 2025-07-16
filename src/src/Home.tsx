@@ -254,6 +254,21 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     return interval;
   };
 
+  // Function to restart timer from a specific progress point
+  const restartTimerFromProgress = (newProgress: number) => {
+    const duration = 3 * 60 * 1000; // 3 minutes in milliseconds
+    const elapsedTime = (newProgress / 100) * duration;
+    
+    // Set start time so that current progress is achieved at current time
+    startTimeRef.current = Date.now() - elapsedTime;
+    
+    // Restart the interval
+    if (updateIntervalRef.current) {
+      clearInterval(updateIntervalRef.current);
+    }
+    updateIntervalRef.current = startUpdateProcess();
+  };
+
   // Function to animate dial to 0 and disappear
   const animateDialToZero = () => {
     // Animate dial to 0
@@ -345,47 +360,18 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         return;
       }
       
-      // For non-100% commands, animate to the target percent at animation rate
-      const currentProgress = updateProgress;
+      // For non-100% commands, jump to target percent and restart timer
       const targetProgress = percent;
-      const animationDuration = 500; // 500ms animation
-      const startTime = Date.now();
       
-      const animateToPercent = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / animationDuration, 1);
-        
-        // Easing function (ease-in-out)
-        const easeInOut = progress < 0.5 
-          ? 2 * progress * progress 
-          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-        
-        const newProgress = currentProgress + (targetProgress - currentProgress) * easeInOut;
-        
-        // Update CSS custom properties exactly like Console component
-        updateProgressCircle(updateProgressRef.current, newProgress, '--docker-percentage');
-        updateEndWrapper(updateEndWrapperRef.current, newProgress);
-        
-        // Update state
-        setUpdateProgress(newProgress);
-        
-        if (progress < 1) {
-          requestAnimationFrame(animateToPercent);
-        } else {
-          // Animation complete, restart the timer from the new position
-          if (newProgress < 100) {
-            // Calculate new start time based on current progress
-            const duration = 3 * 60 * 1000; // 3 minutes
-            const elapsedTime = (newProgress / 100) * duration;
-            startTimeRef.current = Date.now() - elapsedTime;
-            
-            // Restart the interval
-            updateIntervalRef.current = startUpdateProcess();
-          }
-        }
-      };
+      // Immediately jump to the target percent
+      updateProgressCircle(updateProgressRef.current, targetProgress, '--docker-percentage');
+      updateEndWrapper(updateEndWrapperRef.current, targetProgress);
+      setUpdateProgress(targetProgress);
       
-      requestAnimationFrame(animateToPercent);
+      // Restart the timer from the new progress point
+      if (targetProgress < 100) {
+        restartTimerFromProgress(targetProgress);
+      }
     }
   };
 
