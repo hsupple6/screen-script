@@ -504,11 +504,19 @@ app.post('/api/command/start', async (req, res) => {
         }
         
         // Store the command timestamp for frontend polling
+        const timestamp = Date.now();
         global.lastStartCommand = {
-            timestamp: Date.now(),
+            timestamp: timestamp,
             command: fullCommand,
             output: stdout
         };
+        
+        // Auto-clear after 5 seconds to prevent stale commands
+        setTimeout(() => {
+            if (global.lastStartCommand && global.lastStartCommand.timestamp === timestamp) {
+                global.lastStartCommand = null;
+            }
+        }, 5000);
         
         res.json({
             success: true,
@@ -564,11 +572,19 @@ app.post('/api/command/percent', async (req, res) => {
         console.log(`Received percent command: ${percentValue}% (action: ${action})`);
         
         // Store the percent command for frontend polling
+        const timestamp = Date.now();
         global.lastPercentCommand = {
-            timestamp: Date.now(),
+            timestamp: timestamp,
             percent: percentValue,
             action: action
         };
+        
+        // Auto-clear after 5 seconds to prevent stale commands
+        setTimeout(() => {
+            if (global.lastPercentCommand && global.lastPercentCommand.timestamp === timestamp) {
+                global.lastPercentCommand = null;
+            }
+        }, 5000);
         
         // Here you can add logic to handle the percentage value
         // For example, you could:

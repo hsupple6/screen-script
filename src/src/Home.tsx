@@ -361,8 +361,12 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   useEffect(() => {
     let lastStartTimestamp = 0;
     let lastPercentTimestamp = 0;
+    let isProcessing = false;
     
     const pollForCommands = async () => {
+      if (isProcessing) return; // Prevent overlapping polls
+      isProcessing = true;
+      
       try {
         const response = await fetch('http://localhost:5421/api/command/recent');
         if (response.ok) {
@@ -372,33 +376,39 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
           if (data.lastStartCommand && data.lastStartCommand.timestamp > lastStartTimestamp && !isUpdating) {
             lastStartTimestamp = data.lastStartCommand.timestamp;
             console.log('New start command detected:', data.lastStartCommand);
-            triggerStartAnimation();
             
-            // Clear the stored start command so it doesn't keep triggering
-            fetch('http://localhost:5421/api/command/clear', { method: 'POST' }).catch(() => {});
+            // Clear immediately to prevent re-triggering
+            await fetch('http://localhost:5421/api/command/clear', { method: 'POST' }).catch(() => {});
+            
+            // Trigger animation after clearing
+            triggerStartAnimation();
           }
           
           // Check for new percent commands
           if (data.lastPercentCommand && data.lastPercentCommand.timestamp > lastPercentTimestamp) {
             lastPercentTimestamp = data.lastPercentCommand.timestamp;
             console.log('New percent command detected:', data.lastPercentCommand);
+            
             if (isUpdating) {
               handlePercentDuringUpdate(data.lastPercentCommand.percent);
               
               // If it's a 100% command, clear the stored commands
               if (data.lastPercentCommand.percent >= 100) {
-                fetch('http://localhost:5421/api/command/clear', { method: 'POST' }).catch(() => {});
+                await fetch('http://localhost:5421/api/command/clear', { method: 'POST' }).catch(() => {});
               }
             }
           }
         }
       } catch (error) {
         // Backend might not be running, ignore errors
+        console.log('Polling error:', error);
+      } finally {
+        isProcessing = false;
       }
     };
     
-    // Poll every 2 seconds
-    const interval = setInterval(pollForCommands, 2000);
+    // Poll more frequently for better responsiveness
+    const interval = setInterval(pollForCommands, 500);
     
     return () => clearInterval(interval);
   }, [isUpdating]);
