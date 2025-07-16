@@ -108,6 +108,8 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   const [receivedHundredPercent, setReceivedHundredPercent] = useState<boolean>(false);
   const updateProgressRef = useRef<HTMLDivElement>(null);
   const updateEndWrapperRef = useRef<HTMLDivElement>(null);
+  const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(0);
 
   // Function to handle start command
   const handleStartCommand = async (command: string, args: string[] = []) => {
@@ -197,9 +199,10 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     setIsUpdating(true);
     setUpdateProgress(0);
     setUpdateMessage('Starting Update...');
+    setReceivedHundredPercent(false);
     
     // Start the 3-minute update process
-    startUpdateProcess();
+    updateIntervalRef.current = startUpdateProcess();
   };
 
   // Function to check for recent start commands from backend
@@ -219,12 +222,11 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
 
     // Function to start the update process (3 minutes to 100%)
   const startUpdateProcess = () => {
-    const startTime = Date.now();
+    startTimeRef.current = Date.now();
     const duration = 3 * 60 * 1000; // 3 minutes in milliseconds
-    const incrementPerSecond = 100 / (3 * 60); // 0.556% per second
     
     const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
+      const elapsed = Date.now() - startTimeRef.current;
       const progress = Math.min((elapsed / duration) * 100, 100);
       
       // Update CSS custom properties exactly like Console component
@@ -248,6 +250,8 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         }, 3000);
       }
     }, 100); // Update every 100ms for smooth animation
+    
+    return interval;
   };
 
   // Function to animate dial to 0 and disappear
@@ -303,6 +307,11 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         setReceivedHundredPercent(true);
       }
       
+      // Clear the current interval
+      if (updateIntervalRef.current) {
+        clearInterval(updateIntervalRef.current);
+      }
+      
       // Animate to the target percent at animation rate
       const currentProgress = updateProgress;
       const targetProgress = percent;
@@ -329,6 +338,17 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         
         if (progress < 1) {
           requestAnimationFrame(animateToPercent);
+        } else {
+          // Animation complete, restart the timer from the new position
+          if (newProgress < 100) {
+            // Calculate new start time based on current progress
+            const duration = 3 * 60 * 1000; // 3 minutes
+            const elapsedTime = (newProgress / 100) * duration;
+            startTimeRef.current = Date.now() - elapsedTime;
+            
+            // Restart the interval
+            updateIntervalRef.current = startUpdateProcess();
+          }
         }
       };
       
