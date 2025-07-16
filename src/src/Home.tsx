@@ -202,7 +202,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     setReceivedHundredPercent(false);
     
     // Start the 3-minute update process
-    updateIntervalRef.current = startUpdateProcess();
+    updateIntervalRef.current = startUpdateProcess(0);
   };
 
   // Function to check for recent start commands from backend
@@ -221,9 +221,13 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   };
 
     // Function to start the update process (3 minutes to 100%)
-  const startUpdateProcess = () => {
-    startTimeRef.current = Date.now();
+  const startUpdateProcess = (startFromProgress: number = 0) => {
     const duration = 3 * 60 * 1000; // 3 minutes in milliseconds
+    const remainingProgress = 100 - startFromProgress;
+    const remainingTime = (remainingProgress / 100) * duration;
+    
+    // Set start time so that we reach 100% in remainingTime
+    startTimeRef.current = Date.now() - (duration - remainingTime);
     
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTimeRef.current;
@@ -256,17 +260,13 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
 
   // Function to restart timer from a specific progress point
   const restartTimerFromProgress = (newProgress: number) => {
-    const duration = 3 * 60 * 1000; // 3 minutes in milliseconds
-    const elapsedTime = (newProgress / 100) * duration;
-    
-    // Set start time so that current progress is achieved at current time
-    startTimeRef.current = Date.now() - elapsedTime;
-    
-    // Restart the interval
+    // Clear the current interval
     if (updateIntervalRef.current) {
       clearInterval(updateIntervalRef.current);
     }
-    updateIntervalRef.current = startUpdateProcess();
+    
+    // Start the new interval from the new progress point
+    updateIntervalRef.current = startUpdateProcess(newProgress);
   };
 
   // Function to animate dial to 0 and disappear
