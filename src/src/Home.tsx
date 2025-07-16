@@ -319,21 +319,21 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         (dialContainer as HTMLElement).classList.add('dial-pulse-out');
       }
       
-      // Clean up after animation
-      setTimeout(() => {
-        setIsStartAnimation(false);
-        setIsUpdating(false);
-        setUpdateProgress(0);
-        setUpdateMessage('Starting Update...');
-        baseProgressRef.current = 0;
-        
-        if (homeCover) {
-          homeCover.classList.remove('spectacular-close');
-        }
-        if (dialContainer) {
-          (dialContainer as HTMLElement).classList.remove('dial-pulse-out');
-        }
-      }, 2000);
+             // Clean up after animation
+       setTimeout(() => {
+         setIsStartAnimation(false);
+         setIsUpdating(false);
+         setUpdateProgress(0);
+         setUpdateMessage('Starting Update...');
+         baseProgressRef.current = 0;
+         
+         if (homeCover) {
+           homeCover.classList.remove('spectacular-close');
+         }
+         if (dialContainer) {
+           (dialContainer as HTMLElement).classList.remove('dial-pulse-out');
+         }
+       }, 1500);
     }
   };
 
@@ -622,7 +622,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
       style = {{opacity: isStartAnimation ? 1 : 0}}>
         {/* Update Dial */}
         {isUpdating && (
-          <div className="storage-status-container" style={{position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "500px", height: "500px", zIndex: 10002}}>
+          <div className="storage-status-container" style={{position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "400px", height: "400px", zIndex: 10002}}>
             <div className="docker-status-dial">
               <div className="dial-container">
                 <div className="dial-background" style={{background: "#006400"}}>
