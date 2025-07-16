@@ -12,32 +12,90 @@ const port = 5421;
 app.use(cors());
 app.use(express.json());
 
-// Get current WiFi information using airport utility
+// Get current WiFi information (works on both macOS and Ubuntu)
 app.get('/api/wifi', async (req, res) => {
     try {
         console.log('Fetching WiFi information...');
-        const { stdout } = await execPromise('/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I');
-        console.log('Airport output:', stdout);
+        const platform = require('os').platform();
         
-        const ssidMatch = stdout.match(/[^B]SSID: (.+)/);
-        const signalMatch = stdout.match(/agrCtlRSSI: (.+)/);
-        
-        console.log('SSID match:', ssidMatch);
-        console.log('Signal match:', signalMatch);
-        
-        if (ssidMatch) {
-            const response = {
-                ssid: ssidMatch[1].trim(),
-                signal_level: signalMatch ? parseInt(signalMatch[1]) : null
-            };
-            console.log('Sending response:', response);
-            res.json(response);
+        if (platform === 'darwin') {
+            // macOS - use airport utility
+            try {
+                const { stdout } = await execPromise('/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I');
+                console.log('Airport output:', stdout);
+                
+                const ssidMatch = stdout.match(/[^B]SSID: (.+)/);
+                const signalMatch = stdout.match(/agrCtlRSSI: (.+)/);
+                
+                if (ssidMatch) {
+                    const response = {
+                        ssid: ssidMatch[1].trim(),
+                        signal_level: signalMatch ? parseInt(signalMatch[1]) : null,
+                        platform: 'macOS'
+                    };
+                    console.log('Sending macOS response:', response);
+                    res.json(response);
+                } else {
+                    res.json({ error: 'No WiFi connection found', platform: 'macOS' });
+                }
+            } catch (macError) {
+                console.error('macOS airport command failed:', macError);
+                res.json({ error: 'macOS WiFi detection failed', platform: 'macOS' });
+            }
         } else {
-            console.log('No SSID found in output');
-            res.json({ error: 'No WiFi connection found' });
+            // Linux/Ubuntu - use nmcli (NetworkManager)
+            try {
+                // Get active WiFi connection
+                const { stdout } = await execPromise('nmcli -t -f active,ssid dev wifi | grep "^yes"');
+                console.log('nmcli output:', stdout);
+                
+                if (stdout.trim()) {
+                    const ssid = stdout.split(':')[1];
+                    
+                    // Get signal strength
+                    let signalLevel = null;
+                    try {
+                        const { stdout: signalOutput } = await execPromise(`nmcli -t -f signal dev wifi | head -1`);
+                        signalLevel = parseInt(signalOutput.trim()) || null;
+                    } catch (signalError) {
+                        console.log('Could not get signal strength:', signalError.message);
+                    }
+                    
+                    const response = {
+                        ssid: ssid.trim(),
+                        signal_level: signalLevel,
+                        platform: 'Linux'
+                    };
+                    console.log('Sending Linux response:', response);
+                    res.json(response);
+                } else {
+                    res.json({ error: 'No active WiFi connection found', platform: 'Linux' });
+                }
+            } catch (linuxError) {
+                console.error('Linux nmcli command failed:', linuxError);
+                
+                // Fallback: try iwgetid command
+                try {
+                    const { stdout: iwOutput } = await execPromise('iwgetid -r');
+                    if (iwOutput.trim()) {
+                        const response = {
+                            ssid: iwOutput.trim(),
+                            signal_level: null,
+                            platform: 'Linux (iwgetid fallback)'
+                        };
+                        console.log('Sending Linux fallback response:', response);
+                        res.json(response);
+                    } else {
+                        res.json({ error: 'No WiFi connection found (iwgetid)', platform: 'Linux' });
+                    }
+                } catch (iwError) {
+                    console.error('Both nmcli and iwgetid failed:', iwError);
+                    res.json({ error: 'Linux WiFi detection failed', platform: 'Linux' });
+                }
+            }
         }
     } catch (error) {
-        console.error('Error executing airport command:', error);
+        console.error('Error detecting platform or WiFi:', error);
         res.status(500).json({ error: error.message });
     }
 });
