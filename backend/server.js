@@ -686,6 +686,56 @@ app.post('/api/command/percent', async (req, res) => {
     }
 });
 
+// Store the custom name globally
+let customName = 'Your Gal Box'; // Default name
+
+// Set custom name endpoint
+app.post('/api/name', async (req, res) => {
+    try {
+        const { name } = req.body;
+        
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ error: 'Name is required and must be a string' });
+        }
+        
+        // Trim and validate name length
+        const trimmedName = name.trim();
+        if (trimmedName.length === 0) {
+            return res.status(400).json({ error: 'Name cannot be empty' });
+        }
+        
+        if (trimmedName.length > 100) {
+            return res.status(400).json({ error: 'Name must be 100 characters or less' });
+        }
+        
+        customName = trimmedName;
+        console.log(`Custom name updated to: ${customName}`);
+        
+        res.json({
+            success: true,
+            name: customName,
+            message: `Name updated to "${customName}"`,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('Error setting custom name:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            message: `Failed to set name: ${error.message}`
+        });
+    }
+});
+
+// Get custom name endpoint
+app.get('/api/name', (req, res) => {
+    res.json({
+        name: customName,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Helper function to parse network bytes
 function parseNetworkBytes(str) {
     const units = { 'B': 1, 'kB': 1000, 'MB': 1000000, 'GB': 1000000000 };

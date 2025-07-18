@@ -92,6 +92,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   const [IP, setIP] = useState<string>('192.168.1.69');
   const [Wifi, setWifi] = useState<string>('Loading...');
   const [CPU, setCPU] = useState<string>('Loading...');
+  const [customName, setCustomName] = useState<string>('Your Gal Box');
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const [galOSApps, setGalOSApps] = useState<GalOSApp[]>([]);
   const [galOSConnected, setGalOSConnected] = useState<boolean>(false);
@@ -523,6 +524,19 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     return 0;
   };
 
+  const getCustomName = async () => {
+    try {
+      const response = await fetch('http://localhost:5421/api/name');
+      if (response.ok) {
+        const data = await response.json();
+        return data.name || "Your Gal Box";
+      }
+    } catch (error) {
+      console.log('Error fetching custom name:', error);
+      return "Your Gal Box";
+    }
+  };
+
   // Fetch GalOS applications
   useEffect(() => {
     const fetchGalOSApps = async () => {
@@ -568,7 +582,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
 
     fetchGalOSApps();
     
-    // Get initial system data (CPU, WiFi, IP)
+    // Get initial system data (CPU, WiFi, IP, Name)
     const updateSystemData = async () => {
       try {
         console.log('Fetching system data...');
@@ -588,11 +602,17 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         console.log('IP address received:', ipAddress);
         setIP(ipAddress);
         
+        // Fetch custom name
+        const name = await getCustomName();
+        console.log('Custom name received:', name);
+        setCustomName(name);
+        
       } catch (error) {
         console.error('Error updating system data:', error);
         setCPU('Error');
         setWifi('Error');
         setIP('Error');
+        setCustomName('Your Gal Box');
       }
     };
     updateSystemData();
@@ -684,7 +704,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
 
       <div className="home-content">
         <div className="home-info">
-          <div style = {{fontSize: "3vw"}}>Your Gal Box</div>
+          <div style = {{fontSize: "3vw"}}>{customName}</div>
           <InfoBox title="IP Address" value={IP} />
           <InfoBox title="Connected Wifi" value={Wifi} />
           <InfoBox title="CPU Usage" value={CPU + "%"} />
