@@ -621,7 +621,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     const interval = setInterval(() => {
       fetchGalOSApps();
       updateSystemData();
-    }, 30000);
+    }, 2500);
     
     return () => clearInterval(interval);
   }, []);
