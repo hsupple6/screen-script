@@ -5,6 +5,13 @@
   initial-value: 0;
 }
 
+/* CSS Properties for Download Dial */
+@property --download-percentage {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
 .home-container {
   position: absolute;
   min-height: 100vh;
@@ -691,5 +698,30 @@
   }
   100% {
     box-shadow: 0 0 40px rgba(0, 100, 0, 0.8);
+  }
+}
+
+/* Download progress circle */
+.download-progress-circle {
+  background: conic-gradient(
+    from -90deg,
+    transparent 0deg,
+    transparent calc(var(--download-percentage) * 2.7deg),
+    RGB(8,8,8) calc(var(--download-percentage) * 2.7deg),
+    RGB(8,8,8) 270deg
+  );
+}
+
+/* Download dial background animation */
+.download-status-container .dial-background {
+  animation: downloadBackgroundPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes downloadBackgroundPulse {
+  0% {
+    box-shadow: 0 0 20px rgba(74, 144, 226, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 40px rgba(74, 144, 226, 0.8);
   }
 }
