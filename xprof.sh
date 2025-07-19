@@ -1,0 +1,419 @@
+#!/bin/bash
+echo "xprofile loaded at $(date)" >> ~/xprofile.log
+exec > >(tee -a /tmp/kiosk_debug.log) 2>&1
+set -x
+export DISPLAY=:0
+sleep 5
+xrandr --output HDMI-2 --mode 2160x3840 --rotate right --pos 0x0
+xrandr --output DP-1-1 --mode 1080x1920 --rotate right --pos 2160x0
+
+(
+  echo "Starting Chromium in Small Screen"
+
+  SCREEN_RES="1080,1920"
+  chromium-browser --app=http://localhost:1600 \
+     --start-fullscreen \
+     --kiosk \
+     --window-size=$SCREEN_RES \
+     --window-position=2160,0 \
+     --noerrdialogs \
+     --disable-infobars \
+     --incognito \
+     --disable-translate \
+     --disable-session-crashed-bubble \
+     --no-first-run \
+     --fast \
+     --disable-gpu \
+     --disk-cache-dir=/dev/null 
+  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
+ 
+  wmctrl -r "React App" -e 0,2160,0,1920,1080
+
+) &
+
+(
+  cd ~/screen-script || exit 1
+  npm start
+)&
+
+(
+  cd ~/screen-script/backend || exit 1
+  npm start
+)&
+
+  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
+  wmctrl -r "React App" -e 0,2160,0,1920,1080
+  wmctrl -r "localhost" -e 0,2160,0,1920,1080
+
+
+# --- Kill any lingering containers or ports ---
+echo " Cleaning up existing processes..."
+
+# Stop Docker and socket cleanly first
+sudo systemctl stop docker.socket
+sudo systemctl stop docker
+sudo pkill -f docker
+sudo pkill -f containerd
+sudo rm -f /var/run/docker.sock
+sudo rm -f /var/run/docker.pid
+
+  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
+  wmctrl -r "React App" -e 0,2160,0,1920,1080
+
+
+# Enhanced port killing function
+kill_port() {
+  local port=$1
+  echo " Checking port $port..."
+  
+  # Method 1: lsof
+  pid=$(lsof -ti tcp:"$port" 2>/dev/null)
+  if [ -n "$pid" ]; then
+    echo "ort $port is in use by PID $pid. Killing it..."
+    kill -9 "$pid"
+    sleep 1
+  fi
+  
+  # Method 2: fuser (more aggressive)
+  
+  sudo fuser -k "$port"/tcp 2>/dev/null
+
+  # Method 3: netstat check and kill
+  
+netstat_pids=$(netstat -tlnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 | grep -v '-')
+  for npid in $netstat_pids; do
+    if [ -n "$npid" ] && [ "$npid" != "-" ]; then
+      echo "Found additional PID $npid on port $port. Killing it..."
+      kill -9 "$npid" 2>/dev/null
+    fi
+  done
+ # Verify port is free
+  
+  if lsof -ti tcp:"$port" >/dev/null 2>&1; then
+    echo " Port $port still in use after cleanup attempts"
+    return 1
+  else
+    echo " Port $port is now free"
+    return 0
+  fi
+}
+
+# Kill all potentially conflicting ports
+(for p in 5001 9000 9001 9200 27017 3000 1234; do
+  kill_port "$p"
+done
+) &
+# Kill any node/python processes that might be holding ports
+(echo " Killing any lingering Node.js and Python processes..."
+pkill -f "npm start" || true
+pkill -f "node.*start" || true
+pkill -f "python.*start" || true
+pkill -f "flask" || true
+pkill -f "bash.*start.sh" || true
+) &
+
+cd /home/kiosk/Desktop
+
+# --- Disable screen blanking ---
+echo "onfiguring display settings..."
+xset s off
+xset -dpms
+xset s noblank
+
+# --- Start services sequentially with proper error handling ---
+echo " Checking Docker services..."
+
+# Check if Docker daemon is running
+if sudo systemctl is-active docker >/dev/null 2>&1; then
+    echo " Docker daemon is running"
+else
+    echo " Starting Docker daemon..."
+    sudo systemctl start docker.socket
+    sudo systemctl start docker
+    sleep 5
+fi
+
+# Check Docker accessibility (permission issue)
+if docker info >/dev/null 2>&1; then
+    echo " Docker is accessible"
+elif sudo docker info >/dev/null 2>&1; then
+    echo "ocker requires sudo access"
+    echo " Adding user to docker group..."
+    sudo usermod -aG docker $USER
+    echo " Note: You may need to log out and back in for group changes to take effect"
+    echo " Using sudo for Docker commands in this session..."
+    DOCKER_CMD="sudo docker"
+else
+    echo " Docker is not accessible even with sudo"
+    echo " Docker service status:"
+    sudo systemctl status docker --no-pager -l
+    exit 1
+fi
+
+# Set Docker command (with or without sudo)
+if docker info >/dev/null 2>&1; then
+    DOCKER_CMD="docker"
+else
+    DOCKER_CMD="sudo docker"
+fi
+
+echo " Using Docker command: $DOCKER_CMD"
+
+cd galOS || { echo " Cannot find galOS directory"; exit 1; }
+
+# Clean up existing Docker containers and networks
+echo " Cleaning up existing Docker containers..."
+$DOCKER_CMD compose --profile dev down --remove-orphans 2>/dev/null || true
+$DOCKER_CMD container prune -f 2>/dev/null || true
+$DOCKER_CMD network prune -f 2>/dev/null || true
+# Remove specific containers that might conflict
+echo "emoving conflicting containers..."
+for container in mongodb minio elasticsearch galos-mongodb galos-minio galos-elasticsearch; do
+    if $DOCKER_CMD ps -a --format "{{.Names}}" | grep -q "${container}"; then
+        echo "Removing existing container: $container"
+        $DOCKER_CMD rm -f "$container" 2>/dev/null || true
+    fi
+done
+
+# Start Docker Compose services
+(echo " Starting Docker Compose services..."
+$DOCKER_CMD compose --profile dev up -d
+if [ $? -ne 0 ]; then
+    echo " Docker Compose failed to start"
+    echo " Checking for any remaining conflicting containers..."
+    $DOCKER_CMD ps -a
+    exit 1
+fi
+
+# Wait for Docker services to be ready with health checks
+echo " Waiting for Docker services to initialize..."
+
+# Function to wait for a service to be ready
+wait_for_service() {
+    local service=$1
+    local port=$2
+    local max_attempts=30
+    local attempt=1
+    
+    echo " Waiting for $service on port $port..."
+    
+    while [ $attempt -le $max_attempts ]; do
+        if nc -z localhost $port 2>/dev/null; then
+            echo " $service is ready on port $port"
+            return 0
+        fi
+        
+        echo " Attempt $attempt/$max_attempts - $service not ready yet..."
+        sleep 2
+        ((attempt++))
+    done
+    
+    echo " $service failed to start within timeout"
+    return 1
+}
+
+# Wait for each service individually
+wait_for_service "MongoDB" 27017 || { echo " MongoDB startup failed"; exit 1; }
+wait_for_service "Elasticsearch" 9200 || { echo " Elasticsearch startup failed"; exit 1; }
+wait_for_service "MinIO" 9000 || { echo " MinIO startup failed"; exit 1; }
+
+# Additional Elasticsearch health check
+#echo " Checking Elasticsearch health..."
+#for i in {1..15}; do
+#    if curl -s http://localhost:9200/_cluster/health >/dev/null 2>&1; then
+#        echo " Elasticsearch is healthy"
+#        break
+#    fi
+#    echo " Waiting for Elasticsearch health... ($i/15)"
+#    sleep 2
+#done
+
+
+
+# Verify port 5001 is still free before starting backend
+if ! kill_port 5001; then
+    echo " Port 5001 could not be freed for backend"
+    exit 1
+fi
+
+(
+echo "Starting Small Screen Backend"
+  cd ~/screen-script/backend || exit 1
+  npm start >> ~/backend.log 2>&1
+) &
+
+(
+echo "Starting Small Screen"
+  cd ~/screen-script || exit 1
+  npm start >> ~/frontend.log 2>&1
+) &
+
+  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
+  wmctrl -r "React App" -e 0,2160,0,1920,1080
+
+
+#Updating Backend
+echo "Ensuring backend is up to date"
+(
+  git fetch
+
+  LOCAL=$(git rev-parse @)
+  REMOTE=$(git rev-parse @{u})
+  BASE=$(git merge-base @ @{u})
+
+  if [ "$LOCAL" = "$REMOTE" ]; then
+    echo "Backend already up to date."
+  elif [ "$LOCAL" = "$BASE" ]; then
+    curl -s -X POST "localhost:5421/api/command/start" \
+    -H "Content-Type: application/json" \
+    -d '{"command": "echo"}'
+
+    echo "Backend behind remote. Pulling updates..."
+    git pull
+    curl -s -X POST "localhost:5421/api/command/percent" \
+    -H "Content-Type: application/json" \
+    -d '{"percent": 15}'
+
+    cd backend/scripts || exit 1
+    ./install.sh
+    curl -s -X POST "localhost:5421/api/command/percent" \
+    -H "Content-Type: application/json" \
+    -d '{"percent": 75}'
+
+    cd ~/galOS/websocket-server || exit 1
+    npm install
+    curl -s -X POST "localhost:5421/api/command/percent" \
+    -H "Content-Type: application/json" \
+    -d '{"percent": 85}'
+
+    cd ~/galOS/galbox-server/api || exit 1
+    npm install
+    curl -s -X POST "localhost:5421/api/command/percent" \
+    -H "Content-Type: application/json" \
+    -d '{"percent": 90}'
+
+    cd ~/screen-script || exit 1
+    git pull
+    (cd backend
+    npm i) &
+    (npm i) &
+    curl -s -X POST "localhost:5421/api/command/percent" \
+    -H "Content-Type: application/json" \
+    -d '{"percent": 100}'
+
+    cd ~/galOS
+  else
+    echo "Local backend repo has diverged. Please resolve manually."
+    exit 1
+  fi
+)
+# Start backend service
+echo " Starting backend service..."
+(
+  sleep 10
+  cd backend || exit 1
+  if [ -f venv/bin/activate ]; then
+    source venv/bin/activate
+  else
+    echo " Virtual environment not found in backend/"
+    exit 1
+  fi
+  
+  if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+  fi
+  
+  # Set environment variables for better error handling
+  export FLASK_ENV=development
+  export PYTHONUNBUFFERED=1
+  
+  if [ -f scripts/start.sh ]; then
+    bash scripts/start.sh
+  else
+    echo " Backend start script not found"
+    exit 1
+  fi
+) &
+BACKEND_PID=$!
+
+# Check if backend is running on port 5001
+if ! nc -z localhost 5001; then
+    echo " Backend failed to start on port 5001"
+    echo " Checking backend process..."
+    if ! kill -0 $BACKEND_PID 2>/dev/null; then
+        echo " Backend process died"
+        exit 1
+    fi
+fi
+) &
+
+ollama serve &
+
+# Start Galbox Server
+echo "Starting Galbox server..."
+(
+  cd galbox-server/api || exit 1
+  node server.js
+) &
+
+# Start WebSocket server
+echo " Starting WebSocket server..."
+(
+  cd websocket-server || exit 1
+  if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+  fi
+  
+  if [ -f package.json ]; then
+    npm start
+  else
+    echo " WebSocket server package.json not found"
+    exit 1
+  fi
+) &
+WEBSOCKET_PID=$!
+
+# Wait a bit before starting GUI
+sleep 5
+
+# Start GUI
+(  
+  cd gui || exit 1
+  if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+  fi
+  
+  if [ -f package.json ]; then
+    npm start
+  else
+    echo " GUI package.json not found"
+    exit 1
+  fi
+) &
+GUI_PID=$!
+
+echo " All services started!"
+echo "Backend PID: $BACKEND_PID"
+echo "WebSocket PID: $WEBSOCKET_PID" 
+echo "GUI PID: $GUI_PID"
+
+# Monitor services
+echo " Monitoring services..."
+sleep 5
+
+# Check if all services are still running
+for pid in $BACKEND_PID $WEBSOCKET_PID $GUI_PID; do
+    if ! kill -0 $pid 2>/dev/null; then
+        echo " service process has died (PID: $pid)"
+    fi
+done
+
+# Final status check
+echo " Final service status:"
+echo "Port 5001 (Backend): $(nc -z localhost 5001 && echo " Open" || echo  "Closed")"
+echo "Port 9200 (Elasticsearch): $(nc -z localhost 9200 && echo " Open" || echo  "Closed")"
+echo "Port 27017 (MongoDB): $(nc -z localhost 27017 && echo " Open" || echo " Closed")"
+echo "Port 9000 (MinIO): $(nc -z localhost 9000 && echo " Open" || echo"  Closed")"
+
+# Wait for all background processes
+wait
