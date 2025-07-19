@@ -175,11 +175,10 @@ def monitor_wifi_connection():
                 # Check if we can reach the internet
                 if not is_connected():
                     print("Internet connection lost, attempting to reconnect...")
-                    if not attempt_reconnect():
-                        print("Reconnection failed, starting hotspot...")
-                        stop_hotspot()
-                        time.sleep(2)
-                        start_hotspot()
+                    print("Reconnection failed, starting hotspot...")
+                    stop_hotspot()
+                    time.sleep(2)
+                    start_hotspot()
             else:
                 # Not connected to any network or connected to hotspot
                 if current_ssid != hotspot_ssid:
