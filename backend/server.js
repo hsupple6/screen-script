@@ -686,6 +686,105 @@ app.post('/api/command/percent', async (req, res) => {
     }
 });
 
+// Get local models
+app.get('/api/models/local', async (req, res) => {
+    try {
+        // Mock data for now - you can replace this with actual model detection logic
+        const mockModels = [
+            {
+                id: 'llama2-7b',
+                name: 'Llama 2 7B',
+                parameters: '7B',
+                size: '3.8'
+            },
+            {
+                id: 'codellama-7b',
+                name: 'Code Llama 7B',
+                parameters: '7B', 
+                size: '3.8'
+            },
+            {
+                id: 'mistral-7b',
+                name: 'Mistral 7B',
+                parameters: '7B',
+                size: '4.1'
+            },
+            {
+                id: 'llama2-13b',
+                name: 'Llama 2 13B',
+                parameters: '13B',
+                size: '7.3'
+            }
+        ];
+        
+        res.json({
+            success: true,
+            models: mockModels
+        });
+        
+    } catch (error) {
+        console.error('Error getting local models:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Start model download
+app.post('/api/models/download/start', async (req, res) => {
+    try {
+        const { modelId, modelName } = req.body;
+        
+        if (!modelId || !modelName) {
+            return res.status(400).json({ error: 'Model ID and name are required' });
+        }
+        
+        console.log(`Starting download for model: ${modelName} (${modelId})`);
+        
+        res.json({
+            success: true,
+            message: `Started downloading ${modelName}`,
+            modelId: modelId,
+            modelName: modelName
+        });
+        
+    } catch (error) {
+        console.error('Error starting model download:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Stop model download
+app.post('/api/models/download/stop', async (req, res) => {
+    try {
+        const { modelId, modelName } = req.body;
+        
+        if (!modelId || !modelName) {
+            return res.status(400).json({ error: 'Model ID and name are required' });
+        }
+        
+        console.log(`Stopping download for model: ${modelName} (${modelId})`);
+        
+        res.json({
+            success: true,
+            message: `Stopped downloading ${modelName}`,
+            modelId: modelId,
+            modelName: modelName
+        });
+        
+    } catch (error) {
+        console.error('Error stopping model download:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 app.post('/api/command/model', async (req, res) => {
     try {
         const { model, size, args = [] } = req.body;

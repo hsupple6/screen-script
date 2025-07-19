@@ -88,6 +88,14 @@ interface PercentCircle {
   alert?: string;
 }
 
+interface LocalModel {
+  id: string;
+  name: string;
+  parameters: string;
+  size: string;
+  isDownloading?: boolean;
+}
+
 const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   const [IP, setIP] = useState<string>('192.168.1.69');
   const [Wifi, setWifi] = useState<string>('Loading...');
@@ -101,6 +109,10 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   const [isStartAnimation, setIsStartAnimation] = useState<boolean>(false);
   const [percentCircles, setPercentCircles] = useState<PercentCircle[]>([]);
   const [galOSStarted, setGalOSStarted] = useState<boolean>(false);
+  
+  // Local models state
+  const [localModels, setLocalModels] = useState<LocalModel[]>([]);
+  const [downloadingModels, setDownloadingModels] = useState<Set<string>>(new Set());
   
   // Update dial states
   const [updateProgress, setUpdateProgress] = useState<number>(0);
@@ -159,8 +171,8 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         const data = await response.json();
         console.log('Model command response:', data);
         
-        // Trigger the downloading animation
-        triggerDownloadAnimation(model, size);
+        // Add model to downloading state
+        setDownloadingModels(prev => new Set(prev).add(`${model}:${size}`));
         
         return data;
       }
@@ -233,17 +245,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     startUpdateProcess();
   };
 
-  // Function to trigger download animation from external command
-  const triggerDownloadAnimation = (model: string, size: string) => {
-    setIsStartAnimation(true);
-    setIsUpdating(true);
-    setUpdateProgress(0);
-    setUpdateMessage(`Downloading ${model} ${size}`);
-    baseProgressRef.current = 0;
-    
-    // Start the 3-minute download process
-    startUpdateProcess();
-  };
+
 
 
 
@@ -481,16 +483,16 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
             triggerStartAnimation();
           }
           
-          // Check for new model commands (only if not already updating)
-          if (data.lastModelCommand && data.lastModelCommand.timestamp > lastModelTimestamp && !isUpdating) {
+          // Check for new model commands
+          if (data.lastModelCommand && data.lastModelCommand.timestamp > lastModelTimestamp) {
             lastModelTimestamp = data.lastModelCommand.timestamp;
             console.log('New model command detected:', data.lastModelCommand);
             
             // Clear immediately to prevent re-triggering
             await fetch('http://localhost:5421/api/command/clear', { method: 'POST' }).catch(() => {});
             
-            // Trigger download animation after clearing
-            triggerDownloadAnimation(data.lastModelCommand.model, data.lastModelCommand.size);
+            // Add model to downloading state
+            setDownloadingModels(prev => new Set(prev).add(`${data.lastModelCommand.model}:${data.lastModelCommand.size}`));
           }
           
           // Check for new percent commands
@@ -604,8 +606,64 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     }
   };
 
-  // Fetch GalOS applications
+  // Function to start model download
+  const startModelDownload = async (modelId: string, modelName: string) => {
+    try {
+      const response = await fetch('http://localhost:5421/api/models/download/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ modelId, modelName }),
+      });
+      
+      if (response.ok) {
+        setDownloadingModels(prev => new Set(prev).add(modelId));
+        console.log(`Started downloading ${modelName}`);
+      }
+    } catch (error) {
+      console.error('Error starting model download:', error);
+    }
+  };
+
+  // Function to stop model download
+  const stopModelDownload = async (modelId: string, modelName: string) => {
+    try {
+      const response = await fetch('http://localhost:5421/api/models/download/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ modelId, modelName }),
+      });
+      
+      if (response.ok) {
+        setDownloadingModels(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(modelId);
+          return newSet;
+        });
+        console.log(`Stopped downloading ${modelName}`);
+      }
+    } catch (error) {
+      console.error('Error stopping model download:', error);
+    }
+  };
+
+  // Fetch local models and GalOS applications
   useEffect(() => {
+    const fetchLocalModels = async () => {
+      try {
+        const response = await fetch('http://localhost:5421/api/models/local');
+        if (response.ok) {
+          const data = await response.json();
+          setLocalModels(data.models || []);
+        }
+      } catch (error) {
+        console.log('Error fetching local models:', error);
+      }
+    };
+
     const fetchGalOSApps = async () => {
       try {
         // Try to connect to GalOS backend
@@ -647,6 +705,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
       }
     };
 
+    fetchLocalModels();
     fetchGalOSApps();
     
     // Get initial system data (CPU, WiFi, IP, Name)
@@ -686,6 +745,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     
     // Refresh every 30 seconds
     const interval = setInterval(() => {
+      fetchLocalModels();
       fetchGalOSApps();
       updateSystemData();
     }, 1000);

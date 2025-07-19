@@ -18,11 +18,132 @@
 .spaces-container {
     position: absolute;
     width: 100%;
-    height: 100%;
+    height: 30%;
+    top: 0;
 
     display: flex;
     justify-content: space-evenly;
     
     align-items: center;
 
+}
+
+/* Models Section Styles for Spaces */
+.models-section {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.models-title {
+    color: white;
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+.models-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    overflow-y: auto;
+    flex: 1;
+    padding-right: 0.5rem;
+}
+
+.models-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.models-grid::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.models-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.models-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.model-card {
+    background: linear-gradient(135deg, rgba(12, 12, 12, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+}
+
+.model-card:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.model-card.downloading {
+    animation: downloadingFlash 2s ease-in-out infinite;
+    border-color: #4CAF50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+}
+
+@keyframes downloadingFlash {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.02);
+    }
+}
+
+.model-name {
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 0.3rem;
+}
+
+.model-details {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.model-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.stat-value {
+    color: white;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 0.1rem;
+}
+
+.stat-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
