@@ -969,6 +969,48 @@ app.get('/api/name', (req, res) => {
     });
 });
 
+// Images API endpoint
+app.get('/api/images', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    
+    try {
+        const pngDir = path.join(__dirname, '../public/png');
+        
+        // Check if png directory exists
+        if (!fs.existsSync(pngDir)) {
+            // Create directory if it doesn't exist
+            fs.mkdirSync(pngDir, { recursive: true });
+            console.log('Created png directory:', pngDir);
+        }
+        
+        // Read all files from the png directory
+        const files = fs.readdirSync(pngDir);
+        
+        // Filter for image files
+        const imageFiles = files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'].includes(ext);
+        });
+        
+        // Convert to image objects
+        const images = imageFiles.map(file => ({
+            src: `/png/${file}`,
+            name: path.basename(file, path.extname(file))
+        }));
+        
+        console.log(`Found ${images.length} images in png directory`);
+        res.json(images);
+        
+    } catch (error) {
+        console.error('Error reading png directory:', error);
+        res.status(500).json({
+            error: 'Failed to read images directory',
+            message: error.message
+        });
+    }
+});
+
 // Helper function to parse network bytes
 function parseNetworkBytes(str) {
     const units = { 'B': 1, 'kB': 1000, 'MB': 1000000, 'GB': 1000000000 };

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import './App.css';
 import Home from './src/Home';
-import { relative } from 'path';
+import Pictures from './Pictures';
 
 function App() {
   const toggleFullScreen = async () => {
@@ -46,6 +46,21 @@ function App() {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
+
+  // Simple routing based on pathname
+  const getCurrentRoute = () => {
+    const path = window.location.pathname;
+    if (path === '/pictures') {
+      return 'pictures';
+    }
+    return 'home';
+  };
+
+  const currentRoute = getCurrentRoute();
+
+  if (currentRoute === 'pictures') {
+    return <Pictures />;
+  }
 
   return (
     <div className="App">

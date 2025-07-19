@@ -97,6 +97,66 @@ else
   echo "Warning: Chromium window not detected, but continuing..."
 fi
 
+# Start Pictures slideshow in second Chromium instance
+echo "Starting Pictures slideshow..."
+chromium-browser --app=http://localhost:1600/pictures \
+  --start-fullscreen \
+  --kiosk \
+  --window-size=2160,3840 \
+  --window-position=0,0 \
+  --noerrdialogs \
+  --disable-infobars \
+  --incognito \
+  --disable-translate \
+  --no-first-run \
+  --fast \
+  --disable-gpu \
+  --no-sandbox \
+  --disable-dev-shm-usage \
+  --disable-background-timer-throttling \
+  --disable-backgrounding-occluded-windows \
+  --disable-renderer-backgrounding \
+  --user-data-dir="$CACHE_DIR/pictures-user-data" \
+  --disk-cache-dir="$CACHE_DIR/pictures-cache" \
+  --disable-features=TranslateUI \
+  --disable-ipc-flooding-protection \
+  >> ~/pictures-chromium.log 2>&1 &
+
+PICTURES_PID=$!
+echo $PICTURES_PID > /tmp/pictures.pid
+
+# Wait for Pictures window to appear
+echo "Waiting for Pictures window..."
+timeout=30
+pictures_window_found=false
+for i in $(seq 1 $timeout); do
+  # Look for the second Chromium window
+  CHROMIUM_WINDOWS=$(wmctrl -l | grep -E "(React App|localhost:1600|Chromium)" | wc -l)
+  if [ "$CHROMIUM_WINDOWS" -ge 2 ]; then
+    echo "Pictures window detected"
+    pictures_window_found=true
+    break
+  else
+    echo "Waiting for Pictures window... ($i/$timeout)"
+    sleep 1
+  fi
+done
+
+# Position Pictures window
+if [ "$pictures_window_found" = true ]; then
+  sleep 2  # Give window time to fully load
+  echo "Positioning Pictures window..."
+  
+  # Get all Chromium windows and position the last one (newest)
+  WINDOW_IDS=$(wmctrl -l | grep -E "(React App|localhost:1600|Chromium)" | tail -1 | awk '{print $1}')
+  if [ -n "$WINDOW_IDS" ]; then
+    wmctrl -i -r "$WINDOW_IDS" -e 0,0,0,2160,3840
+    echo "Pictures window positioned at (0,0) with size 2160x3840"
+  fi
+else
+  echo "Warning: Pictures window not detected, but continuing..."
+fi
+
 # Now start backend (separate this from frontend/chromium startup)
 echo "Starting backend..."
 (

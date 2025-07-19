@@ -57,7 +57,19 @@
   width: 100%;
   position: absolute;
   top:0%;
-  background: linear-gradient(90deg, RGB(24,24,24) 10%, black 40%);
+  background: linear-gradient(90deg, RGB(17,17,17) 10%, black 40%);
+}
+
+.home-head-opacity {
+
+  display: flex;
+  height: 15%;
+  width: 100%;
+  position: absolute;
+  top:0%;
+  background: linear-gradient(90deg, RGB(107,107,107, 0.15) 10%, RGB(177,177,177, 0.0) 40%);
+  z-index: 10000000;
+
 }
 
 .home-content {
