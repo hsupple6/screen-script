@@ -686,47 +686,69 @@ app.post('/api/command/percent', async (req, res) => {
     }
 });
 
-// Get local models
+// Get local models from ollama list command
 app.get('/api/models/local', async (req, res) => {
     try {
-        // Mock data for now - you can replace this with actual model detection logic
-        const mockModels = [
-            {
-                id: 'llama2-7b',
-                name: 'Llama 2 7B',
-                parameters: '7B',
-                size: '3.8'
-            },
-            {
-                id: 'codellama-7b',
-                name: 'Code Llama 7B',
-                parameters: '7B', 
-                size: '3.8'
-            },
-            {
-                id: 'mistral-7b',
-                name: 'Mistral 7B',
-                parameters: '7B',
-                size: '4.1'
-            },
-            {
-                id: 'llama2-13b',
-                name: 'Llama 2 13B',
-                parameters: '13B',
-                size: '7.3'
+        console.log('Executing ollama list command...');
+        
+        // Execute ollama list command
+        const { stdout, stderr } = await execPromise('ollama list');
+        
+        if (stderr) {
+            console.log('Ollama stderr:', stderr);
+        }
+        
+        console.log('Ollama list output:', stdout);
+        
+        // Parse the ollama list output
+        const models = [];
+        const lines = stdout.trim().split('\n');
+        
+        // Skip the header line (NAME    ID    SIZE    MODIFIED)
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line) {
+                // Split by whitespace, but handle multiple spaces
+                const parts = line.split(/\s+/);
+                if (parts.length >= 3) {
+                    const name = parts[0];
+                    const size = parts[2];
+                    
+                    // Extract parameters from name (e.g., llama2:7b -> 7B)
+                    let parameters = 'Unknown';
+                    const paramMatch = name.match(/:(\d+\.?\d*[bkm]?)/i);
+                    if (paramMatch) {
+                        parameters = paramMatch[1].toUpperCase();
+                        if (!parameters.endsWith('B')) {
+                            parameters += 'B';
+                        }
+                    }
+                    
+                    models.push({
+                        id: name.replace(':', '-'), // Use safe ID format
+                        name: name,
+                        parameters: parameters,
+                        size: size
+                    });
+                }
             }
-        ];
+        }
+        
+        console.log('Parsed models:', models);
         
         res.json({
             success: true,
-            models: mockModels
+            models: models
         });
         
     } catch (error) {
-        console.error('Error getting local models:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
+        console.error('Error getting local models from ollama:', error);
+        
+        // If ollama command fails, return empty array instead of error
+        res.json({
+            success: true,
+            models: [],
+            message: 'Ollama not available or no models installed'
         });
     }
 });
