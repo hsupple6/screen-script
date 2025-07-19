@@ -115,33 +115,66 @@ const Spaces: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => 
         
         <div className="models-section">
           <div className="models-title">Available Local Models</div>
-          <div className="models-grid">
-            {localModels.map((model) => (
-              <div 
-                key={model.id} 
-                className={`model-card ${downloadingModels.has(model.id) ? 'downloading' : ''}`}
-                onClick={() => {
-                  if (downloadingModels.has(model.id)) {
-                    stopModelDownload(model.id, model.name);
-                  } else {
-                    startModelDownload(model.id, model.name);
-                  }
-                }}
-              >
-                <div className="model-name">{model.name}</div>
-                <div className="model-details">
-                  <div className="model-stat">
-                    <div className="stat-value">{model.parameters}</div>
-                    <div className="stat-label">Parameters</div>
-                  </div>
-                  <div className="model-stat">
-                    <div className="stat-value">{model.size}</div>
-                    <div className="stat-label">GB</div>
+          
+          {/* First 5 models as cards */}
+          {localModels.slice(0, 5).length > 0 && (
+            <div className="models-grid">
+              {localModels.slice(0, 5).map((model) => (
+                <div 
+                  key={model.id} 
+                  className={`model-card ${downloadingModels.has(model.id) ? 'downloading' : ''}`}
+                  onClick={() => {
+                    if (downloadingModels.has(model.id)) {
+                      stopModelDownload(model.id, model.name);
+                    } else {
+                      startModelDownload(model.id, model.name);
+                    }
+                  }}
+                >
+                  <div className="model-name">{model.name}</div>
+                  <div className="model-details">
+                    {model.parameters && (
+                      <div className="model-stat">
+                        <div className="stat-value">{model.parameters}</div>
+                        <div className="stat-label">Parameters</div>
+                      </div>
+                    )}
+                    <div className="model-stat">
+                      <div className="stat-value">{model.size}</div>
+                      <div className="stat-label">Size</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Remaining models as rows */}
+          {localModels.slice(5).length > 0 && (
+            <div className="models-rows">
+              {localModels.slice(5).map((model) => (
+                <div 
+                  key={model.id} 
+                  className={`model-row ${downloadingModels.has(model.id) ? 'downloading' : ''}`}
+                  onClick={() => {
+                    if (downloadingModels.has(model.id)) {
+                      stopModelDownload(model.id, model.name);
+                    } else {
+                      startModelDownload(model.id, model.name);
+                    }
+                  }}
+                >
+                  <div className="model-row-name">{model.name}</div>
+                  <div className="model-row-details">
+                    {model.parameters && (
+                      <span className="model-row-stat">{model.parameters}</span>
+                    )}
+                    <span className="model-row-stat">{model.size}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
     </div>
   );

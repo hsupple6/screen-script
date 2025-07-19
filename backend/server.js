@@ -715,7 +715,7 @@ app.get('/api/models/local', async (req, res) => {
                     const size = parts[2];
                     
                     // Extract parameters from name (e.g., llama2:7b -> 7B)
-                    let parameters = 'Unknown';
+                    let parameters = null;
                     const paramMatch = name.match(/:(\d+\.?\d*[bkm]?)/i);
                     if (paramMatch) {
                         parameters = paramMatch[1].toUpperCase();
@@ -724,12 +724,18 @@ app.get('/api/models/local', async (req, res) => {
                         }
                     }
                     
-                    models.push({
+                    const model = {
                         id: name.replace(':', '-'), // Use safe ID format
                         name: name,
-                        parameters: parameters,
                         size: size
-                    });
+                    };
+                    
+                    // Only add parameters if we found them
+                    if (parameters) {
+                        model.parameters = parameters;
+                    }
+                    
+                    models.push(model);
                 }
             }
         }
