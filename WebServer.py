@@ -443,7 +443,7 @@ if __name__ == '__main__':
     # 25-second startup delay
     print("WebServer.py starting up...")
     print("Waiting 25 seconds for system initialization...")
-    for i in range(25, 0, -1):
+    for i in range(60, 0, -1):
         print(f"Starting in {i} seconds...", end='\r')
         time.sleep(1)
     print("\nSystem initialization complete!")
