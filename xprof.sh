@@ -117,10 +117,6 @@ sudo pkill -f containerd
 sudo rm -f /var/run/docker.sock
 sudo rm -f /var/run/docker.pid
 
-  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
-  wmctrl -r "React App" -e 0,2160,0,1920,1080
- 
-
 # Enhanced port killing function
 kill_port() {
   local port=$1
@@ -272,9 +268,6 @@ wait_for_service() {
     return 1
 }
 
-  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
-  wmctrl -r "React App" -e 0,2160,0,1920,1080
-
 # Wait for each service individually
 wait_for_service "MongoDB" 27017 || { echo " MongoDB startup failed"; exit 1; }
 wait_for_service "Elasticsearch" 9200 || { echo " Elasticsearch startup failed"; exit 1; }
@@ -395,19 +388,6 @@ echo "Ensuring screen-script is up to date"
   fi
 )
 
-echo "Starting Small Screen Backend"
-  cd ~/screen-script/backend || exit 1
-  npm start >> ~/backend.log 2>&1
-) &
-
-(
-echo "Starting Small Screen"
-  cd ~/screen-script || exit 1
-  npm start >> ~/frontend.log 2>&1
-) &
-
-  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
-  wmctrl -r "React App" -e 0,2160,0,1920,1080
 # Start backend service
 echo " Starting backend service..."
 (
