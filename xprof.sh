@@ -59,7 +59,7 @@ sudo rm -f /var/run/docker.pid
 
   wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
   wmctrl -r "React App" -e 0,2160,0,1920,1080
-
+ 
 
 # Enhanced port killing function
 kill_port() {
@@ -212,6 +212,9 @@ wait_for_service() {
     return 1
 }
 
+  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
+  wmctrl -r "React App" -e 0,2160,0,1920,1080
+
 # Wait for each service individually
 wait_for_service "MongoDB" 27017 || { echo " MongoDB startup failed"; exit 1; }
 wait_for_service "Elasticsearch" 9200 || { echo " Elasticsearch startup failed"; exit 1; }
@@ -237,19 +240,6 @@ if ! kill_port 5001; then
 fi
 
 (
-echo "Starting Small Screen Backend"
-  cd ~/screen-script/backend || exit 1
-  npm start >> ~/backend.log 2>&1
-) &
-
-(
-echo "Starting Small Screen"
-  cd ~/screen-script || exit 1
-  npm start >> ~/frontend.log 2>&1
-) &
-
-  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
-  wmctrl -r "React App" -e 0,2160,0,1920,1080
 
 
 #Updating Backend
@@ -307,6 +297,57 @@ echo "Ensuring backend is up to date"
     exit 1
   fi
 )
+
+#Updating Screen Script
+echo "Ensuring screen-script is up to date"
+(
+  cd ~/screen-script
+  git fetch
+
+  LOCAL=$(git rev-parse @)
+  REMOTE=$(git rev-parse @{u})
+  BASE=$(git merge-base @ @{u})
+
+  if [ "$LOCAL" = "$REMOTE" ]; then
+    echo "Screen Script already up to date."
+  elif [ "$LOCAL" = "$BASE" ]; then
+    curl -s -X POST "localhost:5421/api/command/start" \
+    -H "Content-Type: application/json" \
+    -d '{"command": "echo"}'
+
+    echo "Screen Script behind remote. Pulling updates..."
+    git pull
+    curl -s -X POST "localhost:5421/api/command/percent" \
+    -H "Content-Type: application/json" \
+    -d '{"percent": 35}'
+
+    cd ~/screen-script
+    npm install
+    
+    cd ~/screen-script/backend
+    npm install
+    curl -s -X POST "localhost:5421/api/command/percent" \
+    -H "Content-Type: application/json" \
+    -d '{"percent": 100}'
+  else
+    echo "Local Screen Script repo has diverged. Please resolve manually."
+    exit 1
+  fi
+)
+
+echo "Starting Small Screen Backend"
+  cd ~/screen-script/backend || exit 1
+  npm start >> ~/backend.log 2>&1
+) &
+
+(
+echo "Starting Small Screen"
+  cd ~/screen-script || exit 1
+  npm start >> ~/frontend.log 2>&1
+) &
+
+  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
+  wmctrl -r "React App" -e 0,2160,0,1920,1080
 # Start backend service
 echo " Starting backend service..."
 (
