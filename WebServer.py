@@ -5,9 +5,20 @@ import subprocess
 import os
 import time
 import socket
+import threading
+import signal
+import sys
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Global variables for monitoring
+monitoring_active = True
+current_ssid = None
+current_password = None
+hotspot_ssid = "galbox_wifi"
+hotspot_password = "12345678"
+interface = "wlp0s20f3"
 
 def is_connected():
     """Check if connected to network"""
@@ -39,6 +50,119 @@ def get_local_ip():
     except:
         return "Unknown"
 
+def get_current_wifi_ssid():
+    """Get the current WiFi SSID"""
+    try:
+        result = subprocess.run([
+            'nmcli', '-t', '-f', 'active,ssid', 'device', 'wifi'
+        ], capture_output=True, text=True, check=True)
+        
+        lines = result.stdout.strip().split('\n')
+        for line in lines:
+            if line.startswith('yes:'):
+                return line.split(':', 1)[1]
+        return None
+    except:
+        return None
+
+def start_hotspot():
+    """Start the WiFi hotspot"""
+    try:
+        print(f"Starting hotspot: {hotspot_ssid}")
+        subprocess.run([
+            "nmcli", "device", "wifi", "hotspot", 
+            "ifname", interface, 
+            "ssid", hotspot_ssid, 
+            "password", hotspot_password
+        ], check=True, capture_output=True)
+        print(f"Hotspot {hotspot_ssid} started successfully")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to start hotspot: {e}")
+        return False
+
+def stop_hotspot():
+    """Stop the WiFi hotspot"""
+    try:
+        subprocess.run([
+            "nmcli", "device", "disconnect", interface
+        ], check=True, capture_output=True)
+        print("Hotspot stopped")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to stop hotspot: {e}")
+        return False
+
+def attempt_reconnect():
+    """Attempt to reconnect to the last known WiFi network"""
+    global current_ssid, current_password
+    
+    if not current_ssid or not current_password:
+        print("No saved WiFi credentials to reconnect to")
+        return False
+    
+    try:
+        print(f"Attempting to reconnect to {current_ssid}...")
+        result = subprocess.run([
+            'nmcli', 'device', 'wifi', 'connect',
+            current_ssid, 'password', current_password
+        ], capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0:
+            print(f"Successfully reconnected to {current_ssid}")
+            return True
+        else:
+            print(f"Failed to reconnect to {current_ssid}: {result.stderr}")
+            return False
+    except subprocess.TimeoutExpired:
+        print("Reconnection attempt timed out")
+        return False
+    except Exception as e:
+        print(f"Reconnection error: {e}")
+        return False
+
+def monitor_wifi_connection():
+    """Monitor WiFi connection and revert to hotspot if lost"""
+    global monitoring_active, current_ssid
+    
+    print("Starting WiFi connection monitoring...")
+    
+    while monitoring_active:
+        try:
+            current_ssid = get_current_wifi_ssid()
+            
+            # Check if we're connected to a network (not hotspot)
+            if current_ssid and current_ssid != hotspot_ssid:
+                print(f"Connected to: {current_ssid}")
+                
+                # Check if we can reach the internet
+                if not is_connected():
+                    print("Internet connection lost, attempting to reconnect...")
+                    if not attempt_reconnect():
+                        print("Reconnection failed, starting hotspot...")
+                        stop_hotspot()
+                        time.sleep(2)
+                        start_hotspot()
+            else:
+                # Not connected to any network or connected to hotspot
+                if current_ssid != hotspot_ssid:
+                    print("No WiFi connection detected, starting hotspot...")
+                    start_hotspot()
+            
+            # Wait before next check
+            time.sleep(10)  # Check every 10 seconds
+            
+        except Exception as e:
+            print(f"Error in WiFi monitoring: {e}")
+            time.sleep(10)
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals"""
+    global monitoring_active
+    print("\nShutting down WiFi server...")
+    monitoring_active = False
+    sys.exit(0)
+
 @app.route('/', methods=['POST'])
 @app.route('/connect', methods=['POST'])
 def connect_wifi():
@@ -55,13 +179,8 @@ def connect_wifi():
 
     # ↓↓↓ Only run this block if NOT already connected ↓↓↓
     try:
-        interface = "wlp0s20f3"
-        ssid  = "galbox_wifi"
-        password = "12345678"
-
-        response = subprocess.run(["nmcli", "device", "wifi", "hotspot", "ifname", interface, "ssid", ssid, "password", password], check = True, capture_output = True, text = True)
-        print(response.stdout)
-
+        global current_ssid, current_password
+        
         if request.is_json:
             data = request.get_json()
             if not data or 'ssid' not in data or 'password' not in data:
@@ -83,7 +202,12 @@ def connect_wifi():
             else:
                 return "SSID cannot be empty", 400
 
-        # Begin connection attempt only if not already connected
+        # Stop hotspot if it's running
+        if get_current_wifi_ssid() == hotspot_ssid:
+            stop_hotspot()
+            time.sleep(2)
+
+        # Begin connection attempt
         subprocess.run(['nmcli', 'device', 'wifi', 'rescan'], check=False, capture_output=True)
         time.sleep(2)
 
@@ -95,6 +219,10 @@ def connect_wifi():
         if result.returncode == 0:
             wait_for_connection()
             local_ip = get_local_ip()
+            
+            # Save credentials for reconnection
+            current_ssid = ssid
+            current_password = password
 
             if request.is_json:
                 return jsonify({
@@ -143,6 +271,8 @@ def wifi_status():
 @app.route('/changewifi', methods=['POST'])
 def change_wifi():
     try:
+        global current_ssid, current_password
+        
         data = request.get_json()
         ssid = data.get('ssid')
         password = data.get('password')
@@ -150,12 +280,21 @@ def change_wifi():
         if not ssid or not password:
             return jsonify({'status': 'error', 'message': 'Missing ssid or password'}), 400
 
+        # Stop hotspot if it's running
+        if get_current_wifi_ssid() == hotspot_ssid:
+            stop_hotspot()
+            time.sleep(2)
+
         # Command to connect using nmcli
         cmd = ['nmcli', 'device', 'wifi', 'connect', ssid, 'password', password]
 
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         if result.returncode == 0:
+            # Save credentials for reconnection
+            current_ssid = ssid
+            current_password = password
+            
             return jsonify({'status': 'success', 'message': result.stdout.strip()}), 200
         else:
             return jsonify({
@@ -186,11 +325,20 @@ if __name__ == '__main__':
     # Check if running with appropriate permissions
     if os.geteuid() != 0:
         print("ERROR: This script MUST be run with sudo privileges!")
-        print("Run with: sudo python3 wifi_server.py")
+        print("Run with: sudo python3 WebServer.py")
         exit(1)
     
-    # Start the server immediately - connection happens when requested
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Start WiFi monitoring in a separate thread
+    monitor_thread = threading.Thread(target=monitor_wifi_connection, daemon=True)
+    monitor_thread.start()
+    
+    # Start the server
     print("WiFi server starting with root privileges...")
+    print("WiFi monitoring active - will revert to hotspot if connection lost")
     print("Send POST request to connect to WiFi")
     
     app.run(host='0.0.0.0', port=5420, debug=False)
