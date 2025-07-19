@@ -1,110 +1,175 @@
 #!/bin/bash
+exec > >(tee -a logfile.log) 2>&1
 
+# Fix X11 display permissions
 export DISPLAY=:0
+xhost +local:root 2>/dev/null || true
+
+# Create proper cache directory instead of /dev/null
+CACHE_DIR="/tmp/chromium-cache-$$"
+mkdir -p "$CACHE_DIR"
+
+# Function to cleanup on exit
+cleanup() {
+    echo "Cleaning up..."
+    [[ -n "$FRONTEND_PID" ]] && kill $FRONTEND_PID 2>/dev/null
+    [[ -n "$CHROMIUM_PID" ]] && kill $CHROMIUM_PID 2>/dev/null
+    rm -rf "$CACHE_DIR"
+}
+trap cleanup EXIT
 
 # Start frontend (React app)
+echo "Starting frontend..."
 (
   cd ~/screen-script || exit 1
   npm start >> ~/frontend.log 2>&1 &
   FRONTEND_PID=$!
 )
 
-# Wait for frontend port 1600 to be open (adjust port accordingly)
+# Wait for frontend port 1600 to be open
+echo "Waiting for frontend to start..."
 timeout=30
 for i in $(seq 1 $timeout); do
   if nc -z localhost 1600; then
     echo "Frontend started on port 1600"
     break
   else
-    echo "Waiting for frontend on port 1600..."
+    echo "Waiting for frontend on port 1600... ($i/$timeout)"
     sleep 1
   fi
 done
 
 if ! nc -z localhost 1600; then
   echo "Frontend failed to start in time"
-  kill $FRONTEND_PID
   exit 1
 fi
 
-# Start Chromium pointing at the frontend URL
-(
-  echo "Starting Chromium in kiosk mode..."
-  chromium-browser --app=http://localhost:1600 \
-    --start-fullscreen \
-    --kiosk \
-    --window-size=1080,1920 \
-    --window-position=2160,0 \
-    --noerrdialogs \
-    --disable-infobars \
-    --incognito \
-    --disable-translate \
-    --no-first-run \
-    --fast \
-    --disable-gpu \
-    --disk-cache-dir=/dev/null &
-  CHROMIUM_PID=$!
-)
+# Start Chromium with proper cache directory and error handling
+echo "Starting Chromium in kiosk mode..."
+chromium-browser --app=http://localhost:1600 \
+  --start-fullscreen \
+  --kiosk \
+  --window-size=1080,1920 \
+  --window-position=2160,0 \
+  --noerrdialogs \
+  --disable-infobars \
+  --incognito \
+  --disable-translate \
+  --no-first-run \
+  --fast \
+  --disable-gpu \
+  --no-sandbox \
+  --disable-dev-shm-usage \
+  --disable-background-timer-throttling \
+  --disable-backgrounding-occluded-windows \
+  --disable-renderer-backgrounding \
+  --user-data-dir="$CACHE_DIR/user-data" \
+  --disk-cache-dir="$CACHE_DIR/cache" \
+  --disable-features=TranslateUI \
+  --disable-ipc-flooding-protection \
+  >> ~/chromium.log 2>&1 &
 
-# Wait for Chromium window to appear (title example "React App" or "http://localhost:1600")
+CHROMIUM_PID=$!
+
+# Wait for Chromium window to appear with better detection
+echo "Waiting for Chromium window..."
 timeout=30
+window_found=false
 for i in $(seq 1 $timeout); do
-  if wmctrl -l | grep -q -e "React App" -e "http://localhost:1600"; then
+  # Check multiple possible window titles
+  if wmctrl -l | grep -E "(React App|localhost:1600|Chromium)" > /dev/null; then
     echo "Chromium window detected"
+    window_found=true
     break
   else
-    echo "Waiting for Chromium window..."
+    echo "Waiting for Chromium window... ($i/$timeout)"
     sleep 1
   fi
 done
 
-if ! wmctrl -l | grep -q -e "React App" -e "http://localhost:1600"; then
-  echo "Chromium window did not appear in time"
-  kill $CHROMIUM_PID
-  exit 1
+# Position window only once after it's found
+if [ "$window_found" = true ]; then
+  sleep 2  # Give window time to fully load
+  echo "Positioning Chromium window..."
+  
+  # Try different window title patterns
+  for title_pattern in "React App" "localhost:1600" "Chromium"; do
+    if wmctrl -l | grep "$title_pattern" > /dev/null; then
+      wmctrl -r "$title_pattern" -e 0,2160,0,1920,1080
+      echo "Window positioned using title: $title_pattern"
+      break
+    fi
+  done
+else
+  echo "Warning: Chromium window not detected, but continuing..."
 fi
 
-# Now start backend
+# Now start backend (separate this from frontend/chromium startup)
+echo "Starting backend..."
 (
   cd ~/screen-script/backend || exit 1
   npm start >> ~/backend.log 2>&1 &
   BACKEND_PID=$!
 )
 
-echo "All services started:"
+echo "Services started:"
 echo "Frontend PID: $FRONTEND_PID"
-echo "Chromium PID: $CHROMIUM_PID"
+echo "Chromium PID: $CHROMIUM_PID" 
 echo "Backend PID: $BACKEND_PID"
 
-# Optionally wait for backend to be listening on port 5001
-timeout=30
+# Wait for backend with better error handling
+echo "Waiting for backend to start..."
+timeout=60  # Increased timeout for backend
+backend_started=false
 for i in $(seq 1 $timeout); do
   if nc -z localhost 5001; then
     echo "Backend started on port 5001"
+    backend_started=true
     break
   else
-    echo "Waiting for backend on port 5001..."
+    echo "Waiting for backend on port 5001... ($i/$timeout)"
     sleep 1
+    
+    # Check if backend process is still running
+    if ! kill -0 $BACKEND_PID 2>/dev/null; then
+      echo "Backend process died. Check ~/backend.log for errors."
+      exit 1
+    fi
   fi
 done
 
-if ! nc -z localhost 5001; then
-  echo "Backend failed to start in time"
-  kill $BACKEND_PID
-  exit 1
+if [ "$backend_started" != true ]; then
+  echo "Backend failed to start in time, but keeping frontend running"
+  echo "Check ~/backend.log for backend errors"
+  # Don't exit - keep frontend running
 fi
 
-# Wait for window
-for i in {1..10}; do
-  if wmctrl -l | grep -q "React App"; then
-    wmctrl -r "React App" -e 0,2160,0,1920,1080
-    break
-  else
-    echo "Waiting for React App window..."
-    sleep 1
+# Keep script running and monitor processes
+echo "Monitoring services..."
+while true; do
+  sleep 10
+  
+  # Check if critical processes are still running
+  if ! kill -0 $FRONTEND_PID 2>/dev/null; then
+    echo "Frontend process died, restarting..."
+    exit 1
+  fi
+  
+  if ! kill -0 $CHROMIUM_PID 2>/dev/null; then
+    echo "Chromium process died, restarting..."
+    exit 1
+  fi
+  
+  # Optional: restart backend if it dies but keep frontend running
+  if [ "$backend_started" = true ] && ! kill -0 $BACKEND_PID 2>/dev/null; then
+    echo "Backend process died, attempting restart..."
+    (
+      cd ~/screen-script/backend || exit 1
+      npm start >> ~/backend.log 2>&1 &
+      BACKEND_PID=$!
+    )
   fi
 done
-
 
 # --- Kill any lingering containers or ports ---
 echo " Cleaning up existing processes..."
