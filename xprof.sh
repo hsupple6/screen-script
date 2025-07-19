@@ -5,6 +5,24 @@ exec > >(tee -a logfile.log) 2>&1
 export DISPLAY=:0
 xhost +local:root 2>/dev/null || true
 
+# Configure display orientations (portrait left)
+echo "Configuring display orientations..."
+
+# Get list of connected displays
+DISPLAYS=$(xrandr --query | grep " connected" | cut -d" " -f1)
+
+# Set each display to portrait left (270 degrees rotation)
+for display in $DISPLAYS; do
+  echo "Setting $display to portrait left orientation..."
+  xrandr --output $display --rotate left 2>/dev/null || {
+    echo "Warning: Failed to rotate $display"
+  }
+done
+
+# Verify display orientations
+echo "Current display orientations:"
+xrandr --query | grep -E "(connected|primary)" | head -10
+
 # Create proper cache directory instead of /dev/null
 CACHE_DIR="/tmp/chromium-cache-$$"
 mkdir -p "$CACHE_DIR"
