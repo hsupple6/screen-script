@@ -689,6 +689,40 @@ app.post('/api/command/percent', async (req, res) => {
 // Store the custom name globally
 let customName = 'Your Gal Box'; // Default name
 
+// File path for persistent storage
+const nameFilePath = './custom_name.json';
+
+// Load custom name from file on startup
+function loadCustomName() {
+    try {
+        if (fs.existsSync(nameFilePath)) {
+            const data = fs.readFileSync(nameFilePath, 'utf8');
+            const parsed = JSON.parse(data);
+            customName = parsed.name || 'Your Gal Box';
+            console.log(`Loaded custom name from file: ${customName}`);
+        } else {
+            console.log('No custom name file found, using default name');
+        }
+    } catch (error) {
+        console.error('Error loading custom name from file:', error);
+        customName = 'Your Gal Box';
+    }
+}
+
+// Save custom name to file
+function saveCustomName(name) {
+    try {
+        const data = JSON.stringify({ name: name, timestamp: new Date().toISOString() });
+        fs.writeFileSync(nameFilePath, data, 'utf8');
+        console.log(`Saved custom name to file: ${name}`);
+    } catch (error) {
+        console.error('Error saving custom name to file:', error);
+    }
+}
+
+// Load the custom name when the server starts
+loadCustomName();
+
 // Set custom name endpoint
 app.post('/api/name', async (req, res) => {
     try {
@@ -710,6 +744,9 @@ app.post('/api/name', async (req, res) => {
         
         customName = trimmedName;
         console.log(`Custom name updated to: ${customName}`);
+        
+        // Save the name to file for persistence
+        saveCustomName(customName);
         
         res.json({
             success: true,
