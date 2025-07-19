@@ -19,6 +19,8 @@ current_password = None
 hotspot_ssid = "galbox_wifi"
 hotspot_password = "12345678"
 interface = "wlp0s20f3"
+last_connection_attempt = 0
+connection_cooldown = 30  # 30 seconds cooldown after connection attempts
 
 def is_connected():
     """Check if connected to network"""
@@ -41,13 +43,40 @@ def wait_for_connection():
 
 def get_local_ip():
     try:
-        # Connect to a remote address to determine local IP
+        # First try to get IP from the WiFi interface directly
+        result = subprocess.run([
+            'ip', 'addr', 'show', interface
+        ], capture_output=True, text=True, check=True)
+        
+        # Parse the output to find the IP address
+        lines = result.stdout.split('\n')
+        for line in lines:
+            if 'inet ' in line and not line.strip().startswith('#'):
+                # Extract IP address (remove /24 subnet mask)
+                ip = line.strip().split()[1].split('/')[0]
+                if ip and ip != '127.0.0.1':
+                    return ip
+        
+        # Fallback: try to connect to a remote address
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(3)
         s.connect(("8.8.8.8", 80))
         local_ip = s.getsockname()[0]
         s.close()
         return local_ip
-    except:
+    except Exception as e:
+        print(f"Error getting local IP: {e}")
+        # Last resort: try to get any IP from the system
+        try:
+            result = subprocess.run([
+                'hostname', '-I'
+            ], capture_output=True, text=True, check=True)
+            ips = result.stdout.strip().split()
+            for ip in ips:
+                if ip and ip != '127.0.0.1' and not ip.startswith('169.254'):
+                    return ip
+        except:
+            pass
         return "Unknown"
 
 def get_current_wifi_ssid():
@@ -123,13 +152,21 @@ def attempt_reconnect():
 
 def monitor_wifi_connection():
     """Monitor WiFi connection and revert to hotspot if lost"""
-    global monitoring_active, current_ssid
+    global monitoring_active, current_ssid, last_connection_attempt, connection_cooldown
     
     print("Starting WiFi connection monitoring...")
     
     while monitoring_active:
         try:
             current_ssid = get_current_wifi_ssid()
+            current_time = time.time()
+            
+            # Check if we're in cooldown period
+            if current_time - last_connection_attempt < connection_cooldown:
+                remaining_cooldown = connection_cooldown - (current_time - last_connection_attempt)
+                print(f"In cooldown period, remaining: {remaining_cooldown:.1f} seconds")
+                time.sleep(10)
+                continue
             
             # Check if we're connected to a network (not hotspot)
             if current_ssid and current_ssid != hotspot_ssid:
@@ -223,6 +260,11 @@ def connect_wifi():
             # Save credentials for reconnection
             current_ssid = ssid
             current_password = password
+            
+            # Set cooldown to prevent immediate reversion
+            global last_connection_attempt
+            last_connection_attempt = time.time()
+            print(f"Connection successful, cooldown active for {connection_cooldown} seconds")
 
             if request.is_json:
                 return jsonify({
@@ -295,6 +337,11 @@ def change_wifi():
             current_ssid = ssid
             current_password = password
             
+            # Set cooldown to prevent immediate reversion
+            global last_connection_attempt
+            last_connection_attempt = time.time()
+            print(f"WiFi change successful, cooldown active for {connection_cooldown} seconds")
+            
             return jsonify({'status': 'success', 'message': result.stdout.strip()}), 200
         else:
             return jsonify({
@@ -310,11 +357,73 @@ def change_wifi():
 def identify():
     hostname = os.uname().nodename
     local_ip = get_local_ip()
+    current_ssid = get_current_wifi_ssid()
+    is_hotspot = current_ssid == hotspot_ssid
+    
     return jsonify({
         'hostname': hostname,
         'ip': local_ip,
+        'current_ssid': current_ssid,
+        'is_hotspot': is_hotspot,
+        'interface': interface,
         'message': f'This is {hostname} at {local_ip}'
     })
+
+@app.route('/debug/ip', methods=['GET'])
+def debug_ip():
+    """Debug endpoint to show IP detection details"""
+    try:
+        # Get IP using different methods
+        ip_method1 = None
+        ip_method2 = None
+        ip_method3 = None
+        
+        # Method 1: ip addr show
+        try:
+            result = subprocess.run([
+                'ip', 'addr', 'show', interface
+            ], capture_output=True, text=True, check=True)
+            lines = result.stdout.split('\n')
+            for line in lines:
+                if 'inet ' in line and not line.strip().startswith('#'):
+                    ip = line.strip().split()[1].split('/')[0]
+                    if ip and ip != '127.0.0.1':
+                        ip_method1 = ip
+                        break
+        except Exception as e:
+            ip_method1 = f"Error: {e}"
+        
+        # Method 2: hostname -I
+        try:
+            result = subprocess.run([
+                'hostname', '-I'
+            ], capture_output=True, text=True, check=True)
+            ip_method2 = result.stdout.strip()
+        except Exception as e:
+            ip_method2 = f"Error: {e}"
+        
+        # Method 3: socket connection
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(3)
+            s.connect(("8.8.8.8", 80))
+            ip_method3 = s.getsockname()[0]
+            s.close()
+        except Exception as e:
+            ip_method3 = f"Error: {e}"
+        
+        return jsonify({
+            'final_ip': get_local_ip(),
+            'method1_ip_addr': ip_method1,
+            'method2_hostname_I': ip_method2,
+            'method3_socket': ip_method3,
+            'interface': interface,
+            'current_ssid': get_current_wifi_ssid()
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e)
+        }), 500
 
 # Add the galbox endpoint for discovery
 @app.route('/galbox', methods=['GET'])
