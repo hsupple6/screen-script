@@ -116,10 +116,10 @@ const Spaces: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => 
         <div className="models-section">
           <div className="models-title">Available Local Models</div>
           
-          {/* First 5 models as cards */}
-          {localModels.slice(0, 5).length > 0 && (
+          {/* If 3 or fewer models: show as full cards */}
+          {localModels.length <= 3 && localModels.length > 0 && (
             <div className="models-grid">
-              {localModels.slice(0, 5).map((model) => (
+              {localModels.map((model) => (
                 <div 
                   key={model.id} 
                   className={`model-card ${downloadingModels.has(model.id) ? 'downloading' : ''}`}
@@ -131,7 +131,7 @@ const Spaces: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => 
                     }
                   }}
                 >
-                  <div className="model-name">{model.name}</div>
+                  <div className="model-name">{model.name.substring(0, model.name.indexOf(':'))}</div>
                   <div className="model-details">
                     {model.parameters && (
                       <div className="model-stat">
@@ -149,13 +149,13 @@ const Spaces: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => 
             </div>
           )}
           
-          {/* Remaining models as rows */}
-          {localModels.slice(5).length > 0 && (
-            <div className="models-rows">
-              {localModels.slice(5).map((model) => (
+          {/* If 4 or more models: show all as compact cards */}
+          {localModels.length >= 4 && (
+            <div className="models-compact-grid">
+              {localModels.map((model) => (
                 <div 
                   key={model.id} 
-                  className={`model-row ${downloadingModels.has(model.id) ? 'downloading' : ''}`}
+                  className={`model-compact-card ${downloadingModels.has(model.id) ? 'downloading' : ''}`}
                   onClick={() => {
                     if (downloadingModels.has(model.id)) {
                       stopModelDownload(model.id, model.name);
@@ -164,12 +164,12 @@ const Spaces: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => 
                     }
                   }}
                 >
-                  <div className="model-row-name">{model.name}</div>
-                  <div className="model-row-details">
+                  <div className="model-compact-name">{model.name}</div>
+                  <div className="model-compact-details">
                     {model.parameters && (
-                      <span className="model-row-stat">{model.parameters}</span>
+                      <span className="model-compact-stat">{model.parameters}</span>
                     )}
-                    <span className="model-row-stat">{model.size}</span>
+                    <span className="model-compact-stat">{model.size}</span>
                   </div>
                 </div>
               ))}

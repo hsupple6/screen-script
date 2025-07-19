@@ -147,6 +147,71 @@
     letter-spacing: 1px;
 }
 
+/* Compact Grid Styles for 4+ models */
+.models-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.8rem;
+    flex: 1;
+    padding-right: 0.5rem;
+    max-height: calc(100% - 4rem);
+    overflow: hidden;
+}
+
+.model-compact-card {
+    background: linear-gradient(135deg, rgba(12, 12, 12, 0.8) 0%, rgba(20, 20, 20, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    height: fit-content;
+    min-height: 70px;
+}
+
+.model-compact-card:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.model-compact-card.downloading {
+    animation: downloadingFlash 2s ease-in-out infinite;
+    border-color: #4CAF50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.4);
+}
+
+.model-compact-name {
+    color: white;
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.model-compact-details {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.model-compact-stat {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.1rem 0.4rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
 /* Model Rows Styles */
 .models-rows {
     display: flex;
