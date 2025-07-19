@@ -441,6 +441,14 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
+    # 25-second startup delay
+    print("WebServer.py starting up...")
+    print("Waiting 25 seconds for system initialization...")
+    for i in range(25, 0, -1):
+        print(f"Starting in {i} seconds...", end='\r')
+        time.sleep(1)
+    print("\nSystem initialization complete!")
+    
     # Start WiFi monitoring in a separate thread
     monitor_thread = threading.Thread(target=monitor_wifi_connection, daemon=True)
     monitor_thread.start()
