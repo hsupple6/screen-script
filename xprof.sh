@@ -1,46 +1,86 @@
 #!/bin/bash
-echo "xprofile loaded at $(date)" >> ~/xprofile.log
-exec > >(tee -a /tmp/kiosk_debug.log) 2>&1
-set -x
+
 export DISPLAY=:0
-sleep 5
-xrandr --output HDMI-2 --mode 2160x3840 --rotate right --pos 0x0
-xrandr --output DP-1-1 --mode 1080x1920 --rotate right --pos 2160x0
 
+# Start frontend (React app)
 (
-  echo "Starting Chromium in Small Screen"
+  cd ~/screen-script || exit 1
+  npm start >> ~/frontend.log 2>&1 &
+  FRONTEND_PID=$!
+)
 
-  SCREEN_RES="1080,1920"
+# Wait for frontend port 1600 to be open (adjust port accordingly)
+timeout=30
+for i in $(seq 1 $timeout); do
+  if nc -z localhost 1600; then
+    echo "Frontend started on port 1600"
+    break
+  else
+    echo "Waiting for frontend on port 1600..."
+    sleep 1
+  fi
+done
+
+if ! nc -z localhost 1600; then
+  echo "Frontend failed to start in time"
+  kill $FRONTEND_PID
+  exit 1
+fi
+
+# Start Chromium pointing at the frontend URL
+(
+  echo "Starting Chromium in kiosk mode..."
   chromium-browser --app=http://localhost:1600 \
-     --start-fullscreen \
-     --kiosk \
-     --window-size=$SCREEN_RES \
-     --window-position=2160,0 \
-     --noerrdialogs \
-     --disable-infobars \
-     --incognito \
-     --disable-translate \
-     --disable-session-crashed-bubble \
-     --no-first-run \
-     --fast \
-     --disable-gpu \
-     --disk-cache-dir=/dev/null 
-  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
- 
-  wmctrl -r "React App" -e 0,2160,0,1920,1080
+    --start-fullscreen \
+    --kiosk \
+    --window-size=1080,1920 \
+    --window-position=2160,0 \
+    --noerrdialogs \
+    --disable-infobars \
+    --incognito \
+    --disable-translate \
+    --no-first-run \
+    --fast \
+    --disable-gpu \
+    --disk-cache-dir=/dev/null &
+  CHROMIUM_PID=$!
+)
 
-) &
+# Wait for Chromium window to appear (title example "React App" or "http://localhost:1600")
+timeout=30
+for i in $(seq 1 $timeout); do
+  if wmctrl -l | grep -q -e "React App" -e "http://localhost:1600"; then
+    echo "Chromium window detected"
+    break
+  else
+    echo "Waiting for Chromium window..."
+    sleep 1
+  fi
+done
 
+if ! wmctrl -l | grep -q -e "React App" -e "http://localhost:1600"; then
+  echo "Chromium window did not appear in time"
+  kill $CHROMIUM_PID
+  exit 1
+fi
+
+# Now start backend
 (
   cd ~/screen-script/backend || exit 1
-  npm start >> ~/backend.log 2>&1
-) &
-BACKEND_PID=$!
+  npm start >> ~/backend.log 2>&1 &
+  BACKEND_PID=$!
+)
 
+echo "All services started:"
+echo "Frontend PID: $FRONTEND_PID"
+echo "Chromium PID: $CHROMIUM_PID"
+echo "Backend PID: $BACKEND_PID"
+
+# Optionally wait for backend to be listening on port 5001
 timeout=30
 for i in $(seq 1 $timeout); do
   if nc -z localhost 5001; then
-    echo "Backend started"
+    echo "Backend started on port 5001"
     break
   else
     echo "Waiting for backend on port 5001..."
@@ -53,13 +93,6 @@ if ! nc -z localhost 5001; then
   kill $BACKEND_PID
   exit 1
 fi
-
-# 4. Start frontend similarly and wait for window before wmctrl calls
-(
-  cd ~/screen-script || exit 1
-  npm start >> ~/frontend.log 2>&1
-) &
-FRONTEND_PID=$!
 
 # Wait for window
 for i in {1..10}; do
