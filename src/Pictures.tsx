@@ -13,28 +13,37 @@ const Pictures: React.FC = () => {
 
   // Load images from the png folder
   useEffect(() => {
-    const loadImages = async () => {
-      try {
-        // Try to fetch the list of images from the backend or use a predefined list
-        // Since we can't easily scan the folder from frontend, we'll use a backend endpoint
-        const response = await fetch('http://localhost:5421/api/images');
-        if (response.ok) {
-          const imageList = await response.json();
-          setImages(imageList);
-        } else {
-          throw new Error('Failed to fetch images');
-        }
-      } catch (error) {
-        console.error('Error loading images:', error);
-        // Fallback: try to load from a known set of images
-        const fallbackImages = [
-          { src: '/png/GalLogo.png', name: 'GalLogo' },
-          { src: '/png/image1.png', name: 'image1' },
-          { src: '/png/image2.png', name: 'image2' },
-          { src: '/png/image3.png', name: 'image3' }
-        ];
-        setImages(fallbackImages);
-      }
+    const loadImages = () => {
+      // Since we can't dynamically scan the folder from frontend,
+      // we'll use a predefined list of common image names
+      // You can add more image names to this array
+      const imageNames = [
+        'GalLogo',
+        '2160x3840-dk9asom1hkjqfnwk',
+        '2160x3840-forest-in-autumn-nhyxreotejswb75a',
+        '840261-wallpaper',
+        'debe8c043f66151e8fbb61d64d5bb669',
+        'night_city_street_city_lights_134353_2160x3840',
+        'wp4469784',
+        'image1',
+        'image2',
+        'image3'
+      ];
+      
+      const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+      const imageList: Image[] = [];
+      
+      // Create image objects for each name and extension combination
+      imageNames.forEach(name => {
+        imageExtensions.forEach(ext => {
+          imageList.push({
+            src: `/png/${name}${ext}`,
+            name: name
+          });
+        });
+      });
+      
+      setImages(imageList);
     };
 
     loadImages();
@@ -77,7 +86,14 @@ const Pictures: React.FC = () => {
       <div 
         className={`image-display ${isVisible ? 'fade-in' : 'fade-out'}`}
         style={{
-          backgroundImage: `url(http://localhost:5421${currentImage.src})`,
+          backgroundImage: `url(${currentImage.src})`,
+        }}
+        onError={(e) => {
+          // If image fails to load, skip to next one
+          console.log(`Failed to load image: ${currentImage.src}`);
+          setCurrentImageIndex((prevIndex) => 
+            prevIndex === images.length - 1 ? 0 : prevIndex + 1
+          );
         }}
       >
         <div className="image-info">

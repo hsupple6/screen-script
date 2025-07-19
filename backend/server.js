@@ -10,7 +10,18 @@ const execPromise = util.promisify(exec);
 const app = express();
 const port = 5421;
 
-app.use(cors());
+// Configure CORS to allow requests from React app
+app.use(cors({
+  origin: [
+    'http://localhost:1600',
+    'http://127.0.0.1:1600',
+    'http://192.168.1.65:1600',
+    'http://192.168.1.64:1600'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Serve static files from the public directory
@@ -973,10 +984,21 @@ app.get('/api/name', (req, res) => {
     });
 });
 
+// Handle preflight requests for images endpoint
+app.options('/api/images', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
 // Images API endpoint
 app.get('/api/images', (req, res) => {
     const fs = require('fs');
     const path = require('path');
+    
+    console.log('Images API called from:', req.headers.origin);
+    console.log('Request headers:', req.headers);
     
     try {
         const pngDir = path.join(__dirname, '../public/png');
