@@ -786,7 +786,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         <img src={GalLogo} alt="Gal Logo" 
         style = {{zIndex: "3"}}/>
         <div className = "welcome-message" style = {{position: "absolute", top: "50%", padding: "10px"}}>
-          Welcome Hayden!
+          Welcome!
         </div>
         <div className='welcome-fade'></div>
       </div>
