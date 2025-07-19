@@ -234,8 +234,6 @@ app.get('/api/system/ram', async (req, res) => {
     }
 });
 
-
-
 // Get system disk storage usage
 app.get('/api/system/storage', async (req, res) => {
     try {
@@ -597,7 +595,8 @@ app.post('/api/command/start', async (req, res) => {
 app.get('/api/command/recent', (req, res) => {
     res.json({
         lastStartCommand: global.lastStartCommand || null,
-        lastPercentCommand: global.lastPercentCommand || null
+        lastPercentCommand: global.lastPercentCommand || null,
+        lastModelCommand: global.lastModelCommand || null
     });
 });
 
@@ -605,6 +604,7 @@ app.get('/api/command/recent', (req, res) => {
 app.post('/api/command/clear', (req, res) => {
     global.lastStartCommand = null;
     global.lastPercentCommand = null;
+    global.lastModelCommand = null;
     res.json({
         success: true,
         message: 'Stored commands cleared'
@@ -682,6 +682,63 @@ app.post('/api/command/percent', async (req, res) => {
             success: false,
             error: error.message,
             message: `Failed to process percent command: ${error.message}`
+        });
+    }
+});
+
+app.post('/api/command/model', async (req, res) => {
+    try {
+        const { model, size, args = [] } = req.body;
+
+        if (!model || !size) {
+            return res.status(400).json({ error: 'Model and size are required' });
+        }
+        
+        console.log(`Executing model command: ${model} ${size} ${args.join(' ')}`);
+        
+        // Execute the command
+        const fullCommand = args.length > 0 ? `${model} ${size} ${args.join(' ')}` : `${model} ${size}`;
+        const { stdout, stderr } = await execPromise(fullCommand);
+        
+        console.log(`Model command output: ${stdout}`);
+        if (stderr) {
+            console.log(`Model command stderr: ${stderr}`);
+        }
+        
+        // Store the model command timestamp for frontend polling
+        const timestamp = Date.now();
+        global.lastModelCommand = {
+            timestamp: timestamp,
+            model: model,
+            size: size,
+            command: fullCommand,
+            output: stdout
+        };
+        
+        // Auto-clear after 5 seconds to prevent stale commands
+        setTimeout(() => {
+            if (global.lastModelCommand && global.lastModelCommand.timestamp === timestamp) {
+                global.lastModelCommand = null;
+            }
+        }, 5000);
+        
+        res.json({
+            success: true,
+            model: model,
+            size: size,
+            command: fullCommand,
+            output: stdout,
+            error: stderr || null,
+            message: `Model command '${model} ${size}' started successfully`,
+            timestamp: Date.now()
+        });
+        
+    } catch (error) {
+        console.error('Error executing model command:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            message: `Failed to execute model command: ${error.message}`
         });
     }
 });
