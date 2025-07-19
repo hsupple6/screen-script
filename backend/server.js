@@ -4,6 +4,7 @@ const { exec } = require('child_process');
 const util = require('util');
 const os = require('os');
 const fs = require('fs');
+const path = require('path');
 const execPromise = util.promisify(exec);
 
 const app = express();
@@ -11,6 +12,9 @@ const port = 5421;
 
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Get current IP address
 app.get('/api/system/ip', async (req, res) => {

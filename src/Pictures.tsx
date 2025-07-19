@@ -17,7 +17,7 @@ const Pictures: React.FC = () => {
       try {
         // Try to fetch the list of images from the backend or use a predefined list
         // Since we can't easily scan the folder from frontend, we'll use a backend endpoint
-        const response = await fetch('/api/images');
+        const response = await fetch('http://localhost:5421/api/images');
         if (response.ok) {
           const imageList = await response.json();
           setImages(imageList);
@@ -77,7 +77,7 @@ const Pictures: React.FC = () => {
       <div 
         className={`image-display ${isVisible ? 'fade-in' : 'fade-out'}`}
         style={{
-          backgroundImage: `url(${currentImage.src})`,
+          backgroundImage: `url(http://localhost:5421${currentImage.src})`,
         }}
       >
         <div className="image-info">
