@@ -32,18 +32,45 @@ xrandr --output DP-1-1 --mode 1080x1920 --rotate right --pos 2160x0
 ) &
 
 (
-  cd ~/screen-script || exit 1
-  npm start
-)&
-
-(
   cd ~/screen-script/backend || exit 1
-  npm start
-)&
+  npm start >> ~/backend.log 2>&1
+) &
+BACKEND_PID=$!
 
-  wmctrl -r "http://localhost:1600" -e 0,2160,0,1920,1080
-  wmctrl -r "React App" -e 0,2160,0,1920,1080
-  wmctrl -r "localhost" -e 0,2160,0,1920,1080
+timeout=30
+for i in $(seq 1 $timeout); do
+  if nc -z localhost 5001; then
+    echo "Backend started"
+    break
+  else
+    echo "Waiting for backend on port 5001..."
+    sleep 1
+  fi
+done
+
+if ! nc -z localhost 5001; then
+  echo "Backend failed to start in time"
+  kill $BACKEND_PID
+  exit 1
+fi
+
+# 4. Start frontend similarly and wait for window before wmctrl calls
+(
+  cd ~/screen-script || exit 1
+  npm start >> ~/frontend.log 2>&1
+) &
+FRONTEND_PID=$!
+
+# Wait for window
+for i in {1..10}; do
+  if wmctrl -l | grep -q "React App"; then
+    wmctrl -r "React App" -e 0,2160,0,1920,1080
+    break
+  else
+    echo "Waiting for React App window..."
+    sleep 1
+  fi
+done
 
 
 # --- Kill any lingering containers or ports ---
