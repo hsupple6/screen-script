@@ -144,33 +144,6 @@ if [ "$backend_started" != true ]; then
   # Don't exit - keep frontend running
 fi
 
-# Keep script running and monitor processes
-echo "Monitoring services..."
-while true; do
-  sleep 10
-  
-  # Check if critical processes are still running
-  if ! kill -0 $FRONTEND_PID 2>/dev/null; then
-    echo "Frontend process died, restarting..."
-    exit 1
-  fi
-  
-  if ! kill -0 $CHROMIUM_PID 2>/dev/null; then
-    echo "Chromium process died, restarting..."
-    exit 1
-  fi
-  
-  # Optional: restart backend if it dies but keep frontend running
-  if [ "$backend_started" = true ] && ! kill -0 $BACKEND_PID 2>/dev/null; then
-    echo "Backend process died, attempting restart..."
-    (
-      cd ~/screen-script/backend || exit 1
-      npm start >> ~/backend.log 2>&1 &
-      BACKEND_PID=$!
-    )
-  fi
-done
-
 # --- Kill any lingering containers or ports ---
 echo " Cleaning up existing processes..."
 
