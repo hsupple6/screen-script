@@ -19,7 +19,7 @@
     "ws": "^8.18.2"
   },
   "scripts": {
-    "start": "PORT=1600 react-scripts start",
+    "start": "BROWSER=none PORT=1600 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

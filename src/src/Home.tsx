@@ -112,17 +112,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   const baseProgressRef = useRef<number>(0); // Base progress from commands
   const startTimeRef = useRef<number>(0);
   
-  // Download dial states
-  const [downloadProgress, setDownloadProgress] = useState<number>(0);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [downloadMessage, setDownloadMessage] = useState<string>('Starting Download...');
-  const [downloadModel, setDownloadModel] = useState<string>('');
-  const [downloadSize, setDownloadSize] = useState<string>('');
-  const downloadProgressRef = useRef<HTMLDivElement>(null);
-  const downloadEndWrapperRef = useRef<HTMLDivElement>(null);
-  const downloadIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const downloadBaseProgressRef = useRef<number>(0); // Base progress from commands
-  const downloadStartTimeRef = useRef<number>(0); // When the current timer segment started
+
 
   // Function to handle start command
   const handleStartCommand = async (command: string, args: string[] = []) => {
@@ -197,9 +187,6 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         // If we're in update mode, update the dial
         if (isUpdating) {
           handlePercentDuringUpdate(data.percent);
-        } else if (isDownloading) {
-          // If we're in download mode, update the download dial
-          handlePercentDuringDownload(data.percent);
         } else {
           // Add new percent circle for non-update mode
           const newCircle: PercentCircle = {
@@ -249,16 +236,16 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
   // Function to trigger download animation from external command
   const triggerDownloadAnimation = (model: string, size: string) => {
     setIsStartAnimation(true);
-    setIsDownloading(true);
-    setDownloadProgress(0);
-    setDownloadModel(model);
-    setDownloadSize(size);
-    setDownloadMessage(`Starting ${model} ${size} Download...`);
-    downloadBaseProgressRef.current = 0;
+    setIsUpdating(true);
+    setUpdateProgress(0);
+    setUpdateMessage(`Downloading ${model} ${size}`);
+    baseProgressRef.current = 0;
     
-    // Start the slower download process (5 minutes to 100%)
-    startDownloadProcess();
+    // Start the 3-minute download process
+    startUpdateProcess();
   };
+
+
 
   // Function to check for recent start commands from backend
   const checkForStartCommands = async () => {
@@ -309,39 +296,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     }, 100); // Update every 100ms for smooth animation
   };
 
-  // Function to start the download process (5 minutes to 100% - slower than update)
-  const startDownloadProcess = () => {
-    // Clear any existing interval
-    if (downloadIntervalRef.current) {
-      clearInterval(downloadIntervalRef.current);
-    }
-    
-    downloadStartTimeRef.current = Date.now();
-    const duration = 5 * 60 * 1000; // 5 minutes total duration (slower than update)
-    const progressPerMs = 100 / duration; // Progress per millisecond
-    
-    downloadIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - downloadStartTimeRef.current;
-      const timerProgress = elapsed * progressPerMs; // Progress from timer
-      const totalProgress = Math.min(downloadBaseProgressRef.current + timerProgress, 100);
-      
-      // Update CSS custom properties for download dial
-      updateProgressCircle(downloadProgressRef.current, totalProgress, '--download-percentage');
-      updateEndWrapper(downloadEndWrapperRef.current, totalProgress);
-      
-      // Update state
-      setDownloadProgress(totalProgress);
-      
-      // Stop at 100% (will be handled by completion command)
-      if (totalProgress >= 100) {
-        if (downloadIntervalRef.current) {
-          clearInterval(downloadIntervalRef.current);
-          downloadIntervalRef.current = null;
-        }
-        setDownloadMessage('Waiting for completion...');
-      }
-    }, 100); // Update every 100ms for smooth animation
-  };
+
 
   // Function to set a new base progress and restart timer
   const setProgressAndContinue = (newProgress: number) => {
@@ -359,21 +314,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     }
   };
 
-  // Function to set a new base download progress and restart timer
-  const setDownloadProgressAndContinue = (newProgress: number) => {
-    // Set the new base progress
-    downloadBaseProgressRef.current = newProgress;
-    
-    // Update display immediately
-    updateProgressCircle(downloadProgressRef.current, newProgress, '--download-percentage');
-    updateEndWrapper(downloadEndWrapperRef.current, newProgress);
-    setDownloadProgress(newProgress);
-    
-    // If we're not at 100%, restart the timer
-    if (newProgress < 100) {
-      startDownloadProcess();
-    }
-  };
+
 
   // Function to animate dial to 0 and disappear
   const animateDialToZero = () => {
@@ -411,41 +352,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     requestAnimationFrame(animateDown);
   };
 
-  // Function to animate download dial to 0 and disappear
-  const animateDownloadDialToZero = () => {
-    setDownloadMessage('Finalizing...');
-    
-    // Smooth animation to 0 over 1 second
-    const animationDuration = 1000;
-    const startTime = Date.now();
-    const startProgress = downloadProgress;
-    
-    const animateDown = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / animationDuration, 1);
-      
-      // Ease-out animation
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      const currentProgress = startProgress * (1 - easeOut);
-      
-      // Update both the dial slider and the number
-      updateProgressCircle(downloadProgressRef.current, currentProgress, '--download-percentage');
-      updateEndWrapper(downloadEndWrapperRef.current, currentProgress);
-      setDownloadProgress(currentProgress);
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateDown);
-      } else {
-        // Animation to 0 complete, now do the spectacular closing
-        setDownloadMessage('Complete!');
-        setTimeout(() => {
-          spectacularDownloadClose();
-        }, 500);
-      }
-    };
-    
-    requestAnimationFrame(animateDown);
-  };
+
   
   // Spectacular closing animation
   const spectacularClose = () => {
@@ -478,38 +385,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     }
   };
 
-  // Spectacular download closing animation
-  const spectacularDownloadClose = () => {
-    const homeCover = document.querySelector('.home-cover');
-    if (homeCover) {
-      // Add multiple animation classes for a spectacular effect
-      homeCover.classList.add('spectacular-close');
-      
-      // Pulse effect on the download dial
-      const dialContainer = homeCover.querySelector('.download-status-container');
-      if (dialContainer) {
-        (dialContainer as HTMLElement).classList.add('dial-pulse-out');
-      }
-      
-      // Clean up after animation
-      setTimeout(() => {
-        setIsStartAnimation(false);
-        setIsDownloading(false);
-        setDownloadProgress(0);
-        setDownloadMessage('Starting Download...');
-        setDownloadModel('');
-        setDownloadSize('');
-        downloadBaseProgressRef.current = 0;
-        
-        if (homeCover) {
-          homeCover.classList.remove('spectacular-close');
-        }
-        if (dialContainer) {
-          (dialContainer as HTMLElement).classList.remove('dial-pulse-out');
-        }
-      }, 1500);
-    }
-  };
+
 
   // Function to update progress circle using CSS custom properties
   const updateProgressCircle = (element: HTMLDivElement | null, value: number, property: string) => {
@@ -547,10 +423,13 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
       updateEndWrapper(updateEndWrapperRef.current, 100);
       setUpdateProgress(100);
       
+      // Check if this is a download or update
+      const isDownload = updateMessage.includes('Downloading');
+      
       // Trigger completion sequence
-      setUpdateMessage('Update Complete');
+      setUpdateMessage(isDownload ? 'Download Complete' : 'Update Complete');
       setTimeout(() => {
-        setUpdateMessage('Finished Update');
+        setUpdateMessage(isDownload ? 'Finished Download' : 'Finished Update');
         setTimeout(() => {
           animateDialToZero();
         }, 2000);
@@ -562,39 +441,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
     setProgressAndContinue(percent);
   };
 
-  // Function to handle percent command during download
-  const handlePercentDuringDownload = (percent: number) => {
-    if (!isDownloading) return;
-    
-    console.log('Downloading progress to:', percent);
-    
-    // If percent is 100, immediately complete
-    if (percent >= 100) {
-      // Clear timer
-      if (downloadIntervalRef.current) {
-        clearInterval(downloadIntervalRef.current);
-        downloadIntervalRef.current = null;
-      }
-      
-      // Set to 100% and complete
-      updateProgressCircle(downloadProgressRef.current, 100, '--download-percentage');
-      updateEndWrapper(downloadEndWrapperRef.current, 100);
-      setDownloadProgress(100);
-      
-      // Trigger completion sequence
-      setDownloadMessage('Download Complete');
-      setTimeout(() => {
-        setDownloadMessage('Finished Download');
-        setTimeout(() => {
-          animateDownloadDialToZero();
-        }, 2000);
-      }, 3000);
-      return;
-    }
-    
-    // For non-100% commands, set new progress and continue
-    setDownloadProgressAndContinue(percent);
-  };
+
 
   // Listen for start commands (you can call this from browser console or external scripts)
   useEffect(() => {
@@ -622,8 +469,8 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
         if (response.ok) {
           const data = await response.json();
           
-          // Check for new start commands (only if not already updating or downloading)
-          if (data.lastStartCommand && data.lastStartCommand.timestamp > lastStartTimestamp && !isUpdating && !isDownloading) {
+          // Check for new start commands (only if not already updating)
+          if (data.lastStartCommand && data.lastStartCommand.timestamp > lastStartTimestamp && !isUpdating) {
             lastStartTimestamp = data.lastStartCommand.timestamp;
             console.log('New start command detected:', data.lastStartCommand);
             
@@ -634,8 +481,8 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
             triggerStartAnimation();
           }
           
-          // Check for new model commands (only if not already updating or downloading)
-          if (data.lastModelCommand && data.lastModelCommand.timestamp > lastModelTimestamp && !isUpdating && !isDownloading) {
+          // Check for new model commands (only if not already updating)
+          if (data.lastModelCommand && data.lastModelCommand.timestamp > lastModelTimestamp && !isUpdating) {
             lastModelTimestamp = data.lastModelCommand.timestamp;
             console.log('New model command detected:', data.lastModelCommand);
             
@@ -653,13 +500,6 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
             
             if (isUpdating) {
               handlePercentDuringUpdate(data.lastPercentCommand.percent);
-              
-              // If it's a 100% command, clear the stored commands
-              if (data.lastPercentCommand.percent >= 100) {
-                await fetch('http://localhost:5421/api/command/clear', { method: 'POST' }).catch(() => {});
-              }
-            } else if (isDownloading) {
-              handlePercentDuringDownload(data.lastPercentCommand.percent);
               
               // If it's a 100% command, clear the stored commands
               if (data.lastPercentCommand.percent >= 100) {
@@ -927,41 +767,7 @@ const Home: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => {
           </div>
         )}
         
-        {/* Download Dial */}
-        {isDownloading && (
-          <div className="download-status-container" style={{position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "400px", height: "400px", zIndex: 10002}}>
-            <div className="docker-status-dial">
-              <div className="dial-container">
-                <div className="dial-background" style={{background: "#4A90E2"}}>
-                </div>
-                <div 
-                  ref={downloadProgressRef}
-                  className="progress-circle download-progress-circle"
-                  style={{'transform': 'rotate(-45deg)'} as React.CSSProperties}
-                />
-                <div className="cover-circle" style={{background: "RGB(8,8,8)", zIndex: 4, width: "80%", height: "80%", position: "absolute", borderRadius: "50%"}}>
-                  <div className="dial-text">
-                    <div className="usage-text" style={{fontSize: "2vw", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", justifyContent: "center"}}>
-                      <div>{downloadMessage}</div>
-                      <div style={{fontSize: "1.2vw", color: "#4A90E2"}}>
-                        {downloadModel} {downloadSize}
-                      </div>
-                      <div style={{fontSize: "1.5vw"}}>
-                        <AnimatedNumber value={downloadProgress} duration={500} />%
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="dial-start-point" style={{background: "#4A90E2"}}></div>
-                <div ref={downloadEndWrapperRef} className="dial-end-wrapper">
-                  <div 
-                    className="dial-end-point" style={{background: "#4A90E2"}}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
       
 
