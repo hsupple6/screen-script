@@ -706,15 +706,34 @@ app.get('/api/models/local', async (req, res) => {
         
         // Skip the header line (NAME    ID    SIZE    MODIFIED)
         for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line) {
-                // Split by whitespace, but handle multiple spaces
-                const parts = line.split(/\s+/);
+            const line = lines[i];
+            if (line.trim()) {
+                console.log(`Raw line ${i}: "${line}"`);
+                // Split by 4 spaces to handle the exact format
+                // Format: NAME    ID    SIZE    MODIFIED (4 spaces between each)
+                const parts = line.split('    ').filter(part => part.trim() !== '');
+                console.log(`Split parts:`, parts);
+                
                 if (parts.length >= 3) {
-                    const name = parts[0];
-                    const size = parts[2];
+                    const name = parts[0].trim();
+                    const id = parts[1].trim();
+                    const sizeField = parts[2].trim();
                     
-                    // Extract parameters from name (e.g., llama2:7b -> 7B)
+                    console.log(`Parsing model: name="${name}", id="${id}", sizeField="${sizeField}"`);
+                    
+                    // Extract size with units (e.g., "986 MB", "1.2 GB")
+                    let size = sizeField;
+                    const sizeMatch = sizeField.match(/(\d+(?:\.\d+)?)\s*(GB|MB|KB)/i);
+                    if (sizeMatch) {
+                        const sizeValue = sizeMatch[1];
+                        const unit = sizeMatch[2].toUpperCase();
+                        size = `${sizeValue} ${unit}`;
+                        console.log(`Size matched: "${sizeValue} ${unit}"`);
+                    } else {
+                        console.log(`Size pattern not matched for: "${sizeField}"`);
+                    }
+                    
+                    // Extract parameters from name (e.g., qwen2.5:1.5b -> 1.5B)
                     let parameters = null;
                     const paramMatch = name.match(/:(\d+\.?\d*[bkm]?)/i);
                     if (paramMatch) {
