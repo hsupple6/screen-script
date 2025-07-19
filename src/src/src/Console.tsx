@@ -249,7 +249,7 @@ const Console: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) =>
               <div className = "cover-circle" style = {{background: "RGB(8,8,8)", zIndex: 4, width: "80%", height: "80%", position: "absolute", borderRadius: "50%"}}>
                               <div className = "dial-text">
                     <div className = "usage-text" style = {{fontSize: "2vw", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", justifyContent: "center"}}>
-                      <div>{(totalStorage * storageUsage / 100).toFixed(1)} GB</div>
+                      <div>{(totalStorage).toFixed(1)} GB</div>
                       <div style = {{fontSize: "1.5vw"}}>{storageUsage}%</div>
                     </div>
                   </div>
