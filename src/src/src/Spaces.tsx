@@ -164,7 +164,7 @@ const Spaces: React.FC<HomeProps> = ({ title = 'Welcome to Screen Script' }) => 
                     }
                   }}
                 >
-                  <div className="model-compact-name">{model.name}</div>
+                  <div className="model-compact-name">{model.name.substring(0, model.name.indexOf(':'))}</div>
                   <div className="model-compact-details">
                     {model.parameters && (
                       <span className="model-compact-stat">{model.parameters}</span>
