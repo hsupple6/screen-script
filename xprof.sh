@@ -490,7 +490,7 @@ echo "Starting backend service..."
   export PYTHONUNBUFFERED=1
   
   if [ -f scripts/start.sh ]; then
-    bash scripts/start.sh
+    bash scripts/start.sh --prod
   else
     echo "Backend start script not found"
     exit 1
