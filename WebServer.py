@@ -21,6 +21,10 @@ hotspot_password = "12345678"
 interface = "wlp0s20f3"
 last_connection_attempt = 0
 connection_cooldown = 30  # 30 seconds cooldown after connection attempts
+hotspot_timeout = 5  # 5 seconds timeout before starting hotspot
+static_ip = "192.168.1.100"  # Static IP for the WiFi interface
+static_gateway = "192.168.1.1"  # Gateway IP
+static_dns = "8.8.8.8"  # DNS server
 
 def is_connected():
     """Check if connected to network"""
@@ -40,6 +44,38 @@ def wait_for_connection():
         print("No connection, waiting...")
         time.sleep(2)
     print("Connected!")
+
+def configure_static_ip():
+    """Configure static IP for the WiFi interface"""
+    try:
+        print(f"Configuring static IP {static_ip} for interface {interface}...")
+        
+        # Use the shell script for better static IP configuration
+        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configure_static_ip.sh')
+        if os.path.exists(script_path):
+            result = subprocess.run([script_path], capture_output=True, text=True, check=True)
+            print("Static IP configuration completed via shell script")
+            return True
+        else:
+            print("Static IP configuration script not found, using nmcli directly...")
+            # Fallback to direct nmcli configuration
+            result = subprocess.run([
+                'nmcli', 'connection', 'modify', 
+                f'{interface}', 'ipv4.addresses', static_ip,
+                'ipv4.gateway', static_gateway,
+                'ipv4.dns', static_dns,
+                'ipv4.method', 'manual'
+            ], capture_output=True, text=True, check=True)
+            
+            print(f"Static IP configured successfully: {static_ip}")
+            return True
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to configure static IP: {e}")
+        print("This is not critical - continuing with DHCP...")
+        return False
+    except Exception as e:
+        print(f"Error configuring static IP: {e}")
+        return False
 
 def get_local_ip():
     try:
@@ -174,16 +210,31 @@ def monitor_wifi_connection():
                 
                 # Check if we can reach the internet
                 if not is_connected():
-                    print("Internet connection lost, attempting to reconnect...")
-                    print("Reconnection failed, starting hotspot...")
-                    stop_hotspot()
-                    time.sleep(2)
-                    start_hotspot()
+                    print("Internet connection lost, waiting for timeout before starting hotspot...")
+                    print(f"Waiting {hotspot_timeout} seconds...")
+                    time.sleep(hotspot_timeout)
+                    
+                    # Check again after timeout
+                    if not is_connected():
+                        print("Still no internet connection after timeout, starting hotspot...")
+                        stop_hotspot()
+                        time.sleep(2)
+                        start_hotspot()
+                    else:
+                        print("Internet connection restored during timeout period")
             else:
                 # Not connected to any network or connected to hotspot
                 if current_ssid != hotspot_ssid:
-                    print("No WiFi connection detected, starting hotspot...")
-                    start_hotspot()
+                    print(f"No WiFi connection detected, waiting {hotspot_timeout} seconds before starting hotspot...")
+                    time.sleep(hotspot_timeout)
+                    
+                    # Check again after timeout
+                    current_ssid = get_current_wifi_ssid()
+                    if not current_ssid or current_ssid != hotspot_ssid:
+                        print("Still no WiFi connection after timeout, starting hotspot...")
+                        start_hotspot()
+                    else:
+                        print("WiFi connection established during timeout period")
             
             # Wait before next check
             time.sleep(10)  # Check every 10 seconds
@@ -443,11 +494,14 @@ if __name__ == '__main__':
     # 25-second startup delay
     print("WebServer.py starting up...")
     print("Waiting 25 seconds for system initialization...")
-    for i in range(60, 0, -1):
+    for i in range(25, 0, -1):
         print(f"Starting in {i} seconds...", end='\r')
         time.sleep(1)
     print("\nSystem initialization complete!")
     
+    # Configure static IP
+    configure_static_ip()
+
     # Start WiFi monitoring in a separate thread
     monitor_thread = threading.Thread(target=monitor_wifi_connection, daemon=True)
     monitor_thread.start()
